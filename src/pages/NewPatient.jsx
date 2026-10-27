@@ -91,9 +91,14 @@ export function checkEarlyStageDifferential(aiResult, species, areaOfConcern = '
   }
 }
 
-export default function NewPatient({ onBack, onViewPending, onCapture, currentUser }) {
+export default function NewPatient({ onBack, onViewPending, onCapture, currentUser, authToken, apiBaseUrl, isOffline }) {
   const [name, setName] = useState('')
   const [species, setSpecies] = useState('Canine')
+  const [breed, setBreed] = useState('')
+  const [weight, setWeight] = useState('')
+  const [age, setAge] = useState('')
+  const [ownerName, setOwnerName] = useState('')
+  const [ownerPhone, setOwnerPhone] = useState('')
   const [areaOfConcern, setAreaOfConcern] = useState('')
   const [isSaving, setIsSaving] = useState(false)
   const [error, setError] = useState('')
@@ -132,6 +137,13 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
   // Process image from either live camera snapshot or file upload
   const processImageFile = async (file) => {
     if (!file) return
+
+    // 10 MB maximum file size limit
+    const MAX_FILE_SIZE = 10 * 1024 * 1024
+    if (file.size > MAX_FILE_SIZE) {
+      setError(`Image file is too large (${(file.size / (1024 * 1024)).toFixed(1)} MB). Please select a photo under 10 MB.`)
+      return
+    }
 
     // Revoke previous preview URL to avoid memory leaks
     if (previewUrl) URL.revokeObjectURL(previewUrl)
@@ -302,10 +314,15 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
         assignedStatus = 'Review Results'
       }
 
-      // 2. Save patient
+      // 2. Save patient with full demographics & owner contact
       const patient = await addPatient({
         name: name.trim(),
         species,
+        breed: breed.trim(),
+        weight: weight ? String(weight).trim() : '',
+        age: age.trim(),
+        ownerName: ownerName.trim(),
+        ownerPhone: ownerPhone.trim(),
         areaOfConcern: areaOfConcern.trim(),
         lastVisit: new Date().toISOString().slice(0, 10),
         status: assignedStatus,
@@ -358,6 +375,9 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
           patientId: patient.id,
           name: patient.name,
           species: patient.species,
+          breed: patient.breed,
+          weight: patient.weight,
+          ownerName: patient.ownerName,
           status: assignedStatus,
           diagnosis: aiResult.displayLabel,
           secondary: comorb.isComorbid ? comorb.secondary : null,
@@ -375,6 +395,9 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
           otherSymptoms,
           labTestRequired,
           assignedStatus,
+          diagnosis: aiResult.displayLabel,
+          secondaryDiagnosis: comorb.isComorbid ? comorb.secondary : null,
+          isComorbid: comorb.isComorbid,
         })
       }
 
@@ -634,35 +657,96 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
             <p className="id-auto-note">Patient ID will be assigned automatically.</p>
 
             <label>
-              <span>PATIENT NAME</span>
+              <span>PATIENT NAME *</span>
               <input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="Buddy"
+                placeholder="e.g. Buddy / Max"
                 disabled={isSaving}
+                required
               />
             </label>
 
-            <label>
-              <span>SPECIES</span>
-              <select
-                value={species}
-                onChange={(e) => handleSpeciesChange(e.target.value)}
-                disabled={isSaving}
-              >
-                <option>Canine</option>
-                <option>Feline</option>
-                <option>Avian</option>
-                <option>Rabbit</option>
-              </select>
-            </label>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <label>
+                <span>SPECIES *</span>
+                <select
+                  value={species}
+                  onChange={(e) => handleSpeciesChange(e.target.value)}
+                  disabled={isSaving}
+                >
+                  <option>Canine</option>
+                  <option>Feline</option>
+                  <option>Avian</option>
+                  <option>Rabbit</option>
+                </select>
+              </label>
+
+              <label>
+                <span>BREED (OPTIONAL)</span>
+                <input
+                  value={breed}
+                  onChange={(e) => setBreed(e.target.value)}
+                  placeholder="e.g. Shih Tzu, Aspin, Persian"
+                  disabled={isSaving}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <label>
+                <span>WEIGHT IN KG (OPTIONAL)</span>
+                <input
+                  type="number"
+                  step="0.1"
+                  min="0"
+                  value={weight}
+                  onChange={(e) => setWeight(e.target.value)}
+                  placeholder="e.g. 5.5"
+                  disabled={isSaving}
+                />
+              </label>
+
+              <label>
+                <span>AGE (OPTIONAL)</span>
+                <input
+                  value={age}
+                  onChange={(e) => setAge(e.target.value)}
+                  placeholder="e.g. 2 yrs / 6 mos"
+                  disabled={isSaving}
+                />
+              </label>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+              <label>
+                <span>OWNER NAME (OPTIONAL)</span>
+                <input
+                  value={ownerName}
+                  onChange={(e) => setOwnerName(e.target.value)}
+                  placeholder="e.g. Maria Santos"
+                  disabled={isSaving}
+                />
+              </label>
+
+              <label>
+                <span>OWNER CONTACT / PHONE (OPTIONAL)</span>
+                <input
+                  type="tel"
+                  value={ownerPhone}
+                  onChange={(e) => setOwnerPhone(e.target.value)}
+                  placeholder="e.g. 0917-123-4567"
+                  disabled={isSaving}
+                />
+              </label>
+            </div>
 
             <label>
               <span>AREA OF CONCERN</span>
               <input
                 value={areaOfConcern}
                 onChange={(e) => setAreaOfConcern(e.target.value)}
-                placeholder="Back leg rash"
+                placeholder="e.g. Back leg rash / ear crusts"
                 disabled={isSaving}
               />
             </label>
@@ -923,31 +1007,41 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
             {/* Confirmatory Diagnostic Lab Testing Section */}
             {aiResult && !qualityRejection && !isAnalyzing && (
               <div style={{ marginTop: 12, padding: 12, background: labTestRequired ? '#fffbeb' : '#f8fafc', border: labTestRequired ? '1px solid #fde68a' : '1px solid #e2e8f0', borderRadius: 10 }}>
-                <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: 'pointer' }}>
-                  <input
-                    type="checkbox"
-                    checked={labTestRequired}
-                    onChange={(e) => setLabTestRequired(e.target.checked)}
-                    style={{ marginTop: 2 }}
-                  />
-                  <div>
-                    <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: labTestRequired ? '#b45309' : '#1e293b' }}>
-                      🧪 Confirmatory Diagnostic Lab Test Required
-                    </span>
-                    <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: '#475569', lineHeight: 1.35 }}>
-                      Check if attending staff or clinician needs microscope skin scraping, fungal DTM culture, or tape cytology. (Patient will be flagged as <code>🧪 Awaiting Lab Test</code>).
-                    </p>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                  <label style={{ display: 'flex', alignItems: 'flex-start', gap: 8, cursor: currentUser?.role === 'Clinic Staff' ? 'not-allowed' : 'pointer' }}>
+                    <input
+                      type="checkbox"
+                      checked={labTestRequired}
+                      disabled={currentUser?.role === 'Clinic Staff'}
+                      onChange={(e) => setLabTestRequired(e.target.checked)}
+                      style={{ marginTop: 2 }}
+                    />
+                    <div>
+                      <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: labTestRequired ? '#b45309' : '#1e293b' }}>
+                        🧪 Confirmatory Diagnostic Lab Test Required
+                      </span>
+                      <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: '#475569', lineHeight: 1.35 }}>
+                        Check if attending staff or clinician needs microscope skin scraping, fungal DTM culture, or tape cytology. (Patient will be flagged as <code>🧪 Awaiting Lab Test</code>).
+                      </p>
+                    </div>
+                  </label>
+                </div>
+
+                {currentUser?.role === 'Clinic Staff' && labTestRequired && (
+                  <div style={{ marginTop: 6, padding: '6px 10px', background: '#fef3c7', borderRadius: 6, color: '#92400e', fontSize: '0.76rem', fontWeight: 600 }}>
+                    🔒 Mandated by AI Triage Protocol: Low confidence or secondary comorbidity detected. Awaiting Attending Veterinarian authorization.
                   </div>
-                </label>
+                )}
 
                 {labTestRequired && (
                   <div style={{ marginTop: 8, paddingLeft: 22 }}>
                     <input
                       type="text"
                       value={labTestReason}
+                      disabled={currentUser?.role === 'Clinic Staff'}
                       onChange={(e) => setLabTestReason(e.target.value)}
                       placeholder="Specify test: e.g. Skin scrape for Demodex mites / Fungal DTM culture"
-                      style={{ width: '100%', padding: '6px 10px', fontSize: '0.8rem', borderRadius: 6, border: '1px solid #f59e0b', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '6px 10px', fontSize: '0.8rem', borderRadius: 6, border: '1px solid #f59e0b', boxSizing: 'border-box', background: currentUser?.role === 'Clinic Staff' ? '#fef3c7' : '#ffffff' }}
                     />
                   </div>
                 )}
@@ -1043,12 +1137,39 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
   )
 }
 
-// Helper: convert File to base64 string for local storage
-function fileToBase64(file) {
+// Helper: convert File to downscaled base64 string for local storage (max 1024px, JPEG 85%)
+// Keeps clinical dermatological clarity while preventing IndexedDB mobile quota overflow
+function fileToBase64(file, maxDimension = 1024, quality = 0.85) {
   return new Promise((resolve, reject) => {
-    const reader = new FileReader()
-    reader.onload = () => resolve(reader.result)
-    reader.onerror = () => reject(new Error('Failed to read file'))
-    reader.readAsDataURL(file)
+    const img = new Image()
+    const url = URL.createObjectURL(file)
+    img.onload = () => {
+      URL.revokeObjectURL(url)
+      let { width, height } = img
+      if (width > maxDimension || height > maxDimension) {
+        if (width > height) {
+          height = Math.round((height * maxDimension) / width)
+          width = maxDimension
+        } else {
+          width = Math.round((width * maxDimension) / height)
+          height = maxDimension
+        }
+      }
+      const canvas = document.createElement('canvas')
+      canvas.width = width
+      canvas.height = height
+      const ctx = canvas.getContext('2d')
+      ctx.drawImage(img, 0, 0, width, height)
+      resolve(canvas.toDataURL('image/jpeg', quality))
+    }
+    img.onerror = () => {
+      URL.revokeObjectURL(url)
+      // Fallback to plain FileReader if Image decode fails
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result)
+      reader.onerror = () => reject(new Error('Failed to read file'))
+      reader.readAsDataURL(file)
+    }
+    img.src = url
   })
 }

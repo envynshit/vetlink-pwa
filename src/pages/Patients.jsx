@@ -13,18 +13,17 @@ import {
 import CameraCaptureModal from '../components/CameraCaptureModal'
 
 const CLINICAL_DIAGNOSES = [
-  'Flea Allergy Dermatitis',
+  'Mange',
   'Ringworm',
-  'Hot Spots',
-  'Mange (Demodectic / Sarcoptic)',
   'Pyoderma',
-  'Malassezia Dermatitis',
-  'Atopic Dermatitis',
-  'Healthy (No lesion detected)',
-  'Rabbit Ringworm',
-  'Rabbit Mange',
+  'Hot Spots',
+  'Healthy',
   'Avian Fowl Pox',
-  'Scaly Face Scaly Leg Mite (Knemidocoptes)'
+  'Scaly Face Scaly Leg Mite',
+  'Healthy (Bird)',
+  'Rabbit Mange',
+  'Rabbit Ringworm',
+  'Healthy (Rabbit)'
 ]
 
 export default function Patients({ authToken, apiBaseUrl = 'http://localhost:8000', isOffline = false, currentUser, onProceedToTreatment }) {
@@ -56,6 +55,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
   const [reviewSymptoms, setReviewSymptoms]           = useState([])
   const [clinicalStatus, setClinicalStatus]           = useState('Review Results')
   const [overrideDiag, setOverrideDiag]               = useState('')
+  const [customDiag, setCustomDiag]                   = useState('')
   const [labNotes, setLabNotes]                       = useState('')
   const [isSavingReview, setIsSavingReview]           = useState(false)
   const [reviewError, setReviewError]                 = useState('')
@@ -143,6 +143,11 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
     setFormData({
       name: patient.name || '',
       species: patient.species || 'Canine',
+      breed: patient.breed || '',
+      weight: patient.weight || '',
+      age: patient.age || '',
+      ownerName: patient.ownerName || '',
+      ownerPhone: patient.ownerPhone || '',
       areaOfConcern: patient.areaOfConcern || '',
       lastVisit: patient.lastVisit || '',
       status: patient.status || 'Active',
@@ -162,7 +167,12 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
       await updatePatient(editingPatient.id, {
         ...formData,
         name: formData.name.trim(),
-        areaOfConcern: formData.areaOfConcern.trim(),
+        breed: (formData.breed || '').trim(),
+        weight: (formData.weight || '').trim(),
+        age: (formData.age || '').trim(),
+        ownerName: (formData.ownerName || '').trim(),
+        ownerPhone: (formData.ownerPhone || '').trim(),
+        areaOfConcern: (formData.areaOfConcern || '').trim(),
       })
       await refreshPatients()
       setEditingPatient(null)
@@ -179,6 +189,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
     setReviewPatient(patient)
     setClinicalStatus(patient.status || 'Review Results')
     setOverrideDiag('')
+    setCustomDiag('')
     setLabNotes('')
     setReviewError('')
     setReviewConsult(null)
@@ -217,8 +228,9 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
       // 2. Update consultation if diagnosis overridden or lab notes added
       if (reviewConsult) {
         const updates = {}
-        if (overrideDiag && overrideDiag.trim()) {
-          updates.diagnosis = overrideDiag.trim()
+        const finalDiag = overrideDiag === 'OTHER' ? customDiag.trim() : overrideDiag.trim()
+        if (finalDiag) {
+          updates.diagnosis = finalDiag
         }
         if (labNotes && labNotes.trim()) {
           const currentNotes = reviewConsult.clinicalNotes || ''
@@ -338,6 +350,13 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
     if (!recheckPatient) return
     setIsSavingRecheck(true)
     setRecheckError('')
+
+    // Strict Clinical Validation: Follow-up lesion image is strictly mandatory
+    if (!recheckFile) {
+      setRecheckError('⚠️ Required: Please capture or upload a follow-up lesion image for recheck evaluation.')
+      setIsSavingRecheck(false)
+      return
+    }
 
     try {
       const today = new Date().toISOString().slice(0, 10)
@@ -497,6 +516,11 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                   <div className="patient-name-block">
                     <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                       <strong>{patient.name}</strong>
+                      {patient.breed && (
+                        <span style={{ fontSize: '0.78rem', color: '#64748b', fontWeight: 500 }}>
+                          ({patient.breed})
+                        </span>
+                      )}
                       {patient.syncStatus === 'pending' && (
                         <span className="sync-pending-pill" title="Offline changes pending sync with cloud">
                           <span className="sync-pulse-dot" />
@@ -504,6 +528,16 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                         </span>
                       )}
                     </div>
+                    {patient.ownerName && (
+                      <span style={{ fontSize: '0.78rem', color: '#0284c7', display: 'block', marginTop: '2px' }}>
+                        👤 {patient.ownerName} {patient.ownerPhone ? `• 📞 ${patient.ownerPhone}` : ''}
+                      </span>
+                    )}
+                    {(patient.weight || patient.age) && (
+                      <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>
+                        {patient.weight ? `⚖️ ${patient.weight} kg` : ''} {patient.weight && patient.age ? '• ' : ''}{patient.age ? `🎂 ${patient.age}` : ''}
+                      </span>
+                    )}
                     {patient.areaOfConcern && (
                       <span className="patient-concern-sub">{patient.areaOfConcern}</span>
                     )}
@@ -570,29 +604,84 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                 <span>Name</span>
                 <input value={formData.name} onChange={(event) => setFormData({ ...formData, name: event.target.value })} required />
               </label>
-              <label>
-                <span>Species</span>
-                <select value={formData.species} onChange={(event) => setFormData({ ...formData, species: event.target.value })}>
-                  <option>Canine</option>
-                  <option>Feline</option>
-                  <option>Other</option>
-                </select>
-              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <label>
+                  <span>Species</span>
+                  <select value={formData.species} onChange={(event) => setFormData({ ...formData, species: event.target.value })}>
+                    <option>Canine</option>
+                    <option>Feline</option>
+                    <option>Avian</option>
+                    <option>Lagomorph</option>
+                    <option>Other</option>
+                  </select>
+                </label>
+                <label>
+                  <span>Breed</span>
+                  <input
+                    placeholder="e.g. Aspin, Persian, etc."
+                    value={formData.breed || ''}
+                    onChange={(event) => setFormData({ ...formData, breed: event.target.value })}
+                  />
+                </label>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <label>
+                  <span>Weight (kg)</span>
+                  <input
+                    type="number"
+                    step="0.1"
+                    placeholder="e.g. 5.4"
+                    value={formData.weight || ''}
+                    onChange={(event) => setFormData({ ...formData, weight: event.target.value })}
+                  />
+                </label>
+                <label>
+                  <span>Age</span>
+                  <input
+                    placeholder="e.g. 2 yrs, 6 mos"
+                    value={formData.age || ''}
+                    onChange={(event) => setFormData({ ...formData, age: event.target.value })}
+                  />
+                </label>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <label>
+                  <span>Owner Name</span>
+                  <input
+                    placeholder="e.g. Juan Dela Cruz"
+                    value={formData.ownerName || ''}
+                    onChange={(event) => setFormData({ ...formData, ownerName: event.target.value })}
+                  />
+                </label>
+                <label>
+                  <span>Owner Phone / Contact</span>
+                  <input
+                    placeholder="e.g. 0917-123-4567"
+                    value={formData.ownerPhone || ''}
+                    onChange={(event) => setFormData({ ...formData, ownerPhone: event.target.value })}
+                  />
+                </label>
+              </div>
               <label>
                 <span>Area of Concern</span>
                 <input value={formData.areaOfConcern} onChange={(event) => setFormData({ ...formData, areaOfConcern: event.target.value })} />
               </label>
-              <label>
-                <span>Last Visit</span>
-                <input type="date" value={formData.lastVisit} onChange={(event) => setFormData({ ...formData, lastVisit: event.target.value })} />
-              </label>
-              <label>
-                <span>Status</span>
-                <select value={formData.status} onChange={(event) => setFormData({ ...formData, status: event.target.value })}>
-                  <option>Active</option>
-                  <option>Inactive</option>
-                </select>
-              </label>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px' }}>
+                <label>
+                  <span>Last Visit</span>
+                  <input type="date" value={formData.lastVisit} onChange={(event) => setFormData({ ...formData, lastVisit: event.target.value })} />
+                </label>
+                <label>
+                  <span>Status</span>
+                  <select value={formData.status} onChange={(event) => setFormData({ ...formData, status: event.target.value })}>
+                    <option>Active</option>
+                    <option>Inactive</option>
+                    <option>Needs Vet Review</option>
+                    <option>Awaiting Lab Test</option>
+                    <option>Discharged</option>
+                  </select>
+                </label>
+              </div>
               <div className="modal-actions">
                 <button className="small-outline" type="button" onClick={() => setEditingPatient(null)} disabled={isSaving}>Cancel</button>
                 <button className="action-btn blue" type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save Changes'}</button>
@@ -636,6 +725,19 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                 <div style={{ fontSize: '0.84rem', color: '#1e293b', display: 'flex', flexDirection: 'column', gap: 4 }}>
                   <div><strong>Patient ID:</strong> {reviewPatient.id}</div>
                   <div><strong>Name:</strong> {reviewPatient.name} ({reviewPatient.species})</div>
+                  {reviewPatient.breed && <div><strong>Breed:</strong> {reviewPatient.breed}</div>}
+                  {(reviewPatient.weight || reviewPatient.age) && (
+                    <div>
+                      {reviewPatient.weight ? <span><strong>Weight:</strong> {reviewPatient.weight} kg </span> : null}
+                      {reviewPatient.age ? <span><strong>Age:</strong> {reviewPatient.age}</span> : null}
+                    </div>
+                  )}
+                  {reviewPatient.ownerName && (
+                    <div>
+                      <strong>Owner:</strong> {reviewPatient.ownerName}
+                      {reviewPatient.ownerPhone ? ` (📞 ${reviewPatient.ownerPhone})` : ''}
+                    </div>
+                  )}
                   <div><strong>Intake Date:</strong> {reviewPatient.lastVisit || 'Today'}</div>
                   <div><strong>Area of Concern:</strong> {reviewPatient.areaOfConcern || 'Skin lesion'}</div>
                   <div>
@@ -749,7 +851,24 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                   {CLINICAL_DIAGNOSES.map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
+                  <option value="OTHER">➕ Other / Custom Dermatological Condition...</option>
                 </select>
+
+                {overrideDiag === 'OTHER' && (
+                  <div style={{ marginTop: 8 }}>
+                    <span style={{ fontSize: '0.78rem', fontWeight: 700, color: '#701a75' }}>
+                      Enter Confirmed Custom Diagnosis:
+                    </span>
+                    <input
+                      type="text"
+                      required
+                      value={customDiag}
+                      onChange={(e) => setCustomDiag(e.target.value)}
+                      placeholder="e.g. Canine Papillomavirus / Pemphigus / Deep Abscess"
+                      style={{ width: '100%', padding: '7px 10px', fontSize: '0.85rem', borderRadius: 6, border: '2px solid #a855f7', marginTop: 4, boxSizing: 'border-box' }}
+                    />
+                  </div>
+                )}
 
                 <label style={{ display: 'block', marginTop: 8 }}>
                   <span style={{ fontSize: '0.78rem', fontWeight: 600, color: '#701a75' }}>
@@ -775,18 +894,25 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                     <button
                       type="button"
                       className="secondary-btn"
-                      style={{ padding: '8px 14px', fontSize: '0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1' }}
+                      style={{ padding: '8px 14px', fontSize: '0.85rem', background: '#f8fafc', border: '1px solid #cbd5e1', fontWeight: 700 }}
                       onClick={() => {
-                        const activeDiag = overrideDiag || reviewConsult?.diagnosis || 'Skin Lesion'
+                        const finalDiag = overrideDiag === 'OTHER'
+                          ? (customDiag.trim() || 'Custom Dermatological Condition')
+                          : (overrideDiag || reviewConsult?.diagnosis || 'Skin Lesion')
                         onProceedToTreatment({
                           patient: reviewPatient,
                           consultation: reviewConsult,
                           aiResult: {
-                            displayLabel: activeDiag,
+                            displayLabel: finalDiag,
                             percent: reviewScreening?.aiPercent || 'Clinical Evaluation',
                             top3: reviewScreening?.aiTop3 ? JSON.parse(reviewScreening.aiTop3) : [],
                           },
                           previewUrl: reviewScreening?.imageData,
+                          diagnosis: finalDiag,
+                          secondaryDiagnosis: reviewConsult?.secondaryDiagnosis || null,
+                          isComorbid: Boolean(reviewConsult?.isComorbid || reviewConsult?.secondaryDiagnosis),
+                          assignedStatus: clinicalStatus,
+                          labTestRequired: clinicalStatus === 'Awaiting Lab Test' || reviewConsult?.reviewStatus === 'awaiting_lab',
                         })
                         setReviewPatient(null)
                       }}
@@ -1004,46 +1130,64 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
 
               {/* Clinical Progress Selector */}
               <div style={{ marginBottom: 14 }}>
-                <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#1e293b', display: 'block', marginBottom: 6 }}>
-                  Veterinarian Healing Stage Evaluation:
-                </span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#1e293b' }}>
+                    Veterinarian Healing Stage Evaluation:
+                  </span>
+                  {currentUser?.role === 'Clinic Staff' && (
+                    <span style={{ fontSize: '0.72rem', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
+                      🔒 Restricted to Veterinarian
+                    </span>
+                  )}
+                </div>
+
+                {currentUser?.role === 'Clinic Staff' && (
+                  <div style={{ padding: '6px 10px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: 6, color: '#92400e', fontSize: '0.78rem', marginBottom: 8 }}>
+                    Staff Notice: Healing stage certification is legally restricted to the attending veterinarian. Clinic staff may record follow-up lesion photos and physical vitals.
+                  </div>
+                )}
+
                 <div style={{ display: 'grid', gap: 6, fontSize: '0.85rem' }}>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: recheckProgress === 'resolved' ? '#dcfce7' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: currentUser?.role === 'Clinic Staff' ? 'not-allowed' : 'pointer', padding: '6px 10px', background: recheckProgress === 'resolved' ? '#dcfce7' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1', opacity: currentUser?.role === 'Clinic Staff' ? 0.75 : 1 }}>
                     <input
                       type="radio"
                       name="progress"
                       value="resolved"
                       checked={recheckProgress === 'resolved'}
+                      disabled={currentUser?.role === 'Clinic Staff'}
                       onChange={(e) => setRecheckProgress(e.target.value)}
                     />
                     <span>🟢 <strong>Resolved / Fully Healed</strong> — Lesion cleared, fur regrown, no active erythema</span>
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: recheckProgress === 'improving' ? '#fef9c3' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: currentUser?.role === 'Clinic Staff' ? 'not-allowed' : 'pointer', padding: '6px 10px', background: recheckProgress === 'improving' ? '#fef9c3' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1', opacity: currentUser?.role === 'Clinic Staff' ? 0.75 : 1 }}>
                     <input
                       type="radio"
                       name="progress"
                       value="improving"
                       checked={recheckProgress === 'improving'}
+                      disabled={currentUser?.role === 'Clinic Staff'}
                       onChange={(e) => setRecheckProgress(e.target.value)}
                     />
                     <span>🟡 <strong>Responding / Improving</strong> — Lesion reduced by ~50–80%, healthy scabbing present</span>
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: recheckProgress === 'unchanged' ? '#fee2e2' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: currentUser?.role === 'Clinic Staff' ? 'not-allowed' : 'pointer', padding: '6px 10px', background: recheckProgress === 'unchanged' ? '#fee2e2' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1', opacity: currentUser?.role === 'Clinic Staff' ? 0.75 : 1 }}>
                     <input
                       type="radio"
                       name="progress"
                       value="unchanged"
                       checked={recheckProgress === 'unchanged'}
+                      disabled={currentUser?.role === 'Clinic Staff'}
                       onChange={(e) => setRecheckProgress(e.target.value)}
                     />
                     <span>🔴 <strong>Refractory / Unchanged</strong> — No clinical response; alternative medication indicated</span>
                   </label>
-                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '6px 10px', background: recheckProgress === 'new_complication' ? '#f3e8ff' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1' }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: currentUser?.role === 'Clinic Staff' ? 'not-allowed' : 'pointer', padding: '6px 10px', background: recheckProgress === 'new_complication' ? '#f3e8ff' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1', opacity: currentUser?.role === 'Clinic Staff' ? 0.75 : 1 }}>
                     <input
                       type="radio"
                       name="progress"
                       value="new_complication"
                       checked={recheckProgress === 'new_complication'}
+                      disabled={currentUser?.role === 'Clinic Staff'}
                       onChange={(e) => setRecheckProgress(e.target.value)}
                     />
                     <span>🟣 <strong>Suspected New Complication</strong> — Secondary infection or new separate lesion detected</span>

@@ -9,6 +9,7 @@ import Staff from './pages/Staff'
 import Sync from './pages/Sync'
 import NewPatient from './pages/NewPatient'
 import Settings from './pages/Settings'
+import Treatment from './pages/Treatment'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -27,6 +28,7 @@ function App() {
   const [loggedIn, setLoggedIn] = useState(false)
   const [activeView, setActiveView] = useState('clinic')
   const [showNewPatient, setShowNewPatient] = useState(false)
+  const [treatmentCaseData, setTreatmentCaseData] = useState(null)
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [authToken, setAuthToken] = useState(() => sessionStorage.getItem('vetlink_auth_token') || '')
@@ -379,6 +381,21 @@ function App() {
                   </div>
                 </button>
               )}
+              {(currentUser?.role === 'Clinic Admin' || currentUser?.role?.toLowerCase().includes('vet') || !currentUser?.role) && (
+                <button
+                  type="button"
+                  className={"nav-item " + (activeView === 'treatment' && !showNewPatient && !showSettings ? 'active' : '')}
+                  onClick={() => { setTreatmentCaseData(null); setActiveView('treatment'); setShowNewPatient(false); setShowSettings(false); }}
+                >
+                  <div className="nav-item-label">
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                      <path d="M10.5 20.5l10-10a4.95 4.95 0 1 0-7-7l-10 10a4.95 4.95 0 1 0 7 7z" />
+                      <path d="m8.5 8.5 7 7" />
+                    </svg>
+                    <span>Treatment Protocols</span>
+                  </div>
+                </button>
+              )}
               <button
                 type="button"
                 className={"nav-item " + (activeView === 'sync' && !showNewPatient ? 'active' : '')}
@@ -427,9 +444,10 @@ function App() {
                   <span className="mobile-header-title">VetLink</span>
                 </div>
                 <h2>{showSettings ? 'Settings' : showNewPatient ? 'New Patient' : {
-                  clinic: 'Clinic Analysis',
+                  clinic: 'Clinical Analysis',
                   patients: 'Patient Records',
                   staff: 'Manage Staff',
+                  treatment: 'Treatment Protocols',
                   sync: 'Sync',
                 }[activeView]}</h2>
               </div>
@@ -481,23 +499,48 @@ function App() {
               <NewPatient
                 currentUser={currentUser}
                 onBack={() => setShowNewPatient(false)}
+                onViewPending={() => { setActiveView('patients'); setShowNewPatient(false); }}
                 authToken={authToken}
                 apiBaseUrl={API_BASE_URL}
                 isOffline={currentUser?.isOffline}
-                onCapture={() => { setShowNewPatient(false); setActiveView('patients'); }}
+                onCapture={(payload) => {
+                  setShowNewPatient(false)
+                  setTreatmentCaseData(payload)
+                  setActiveView('treatment')
+                }}
               />
             ) : (
               <>
-                {activeView === 'clinic' && <ClinicalAnalysis />}
+                {activeView === 'clinic' && (
+                  <ClinicalAnalysis
+                    onNewPatient={() => setShowNewPatient(true)}
+                    onViewPatients={() => { setActiveView('patients'); setShowNewPatient(false); }}
+                    currentUser={currentUser}
+                  />
+                )}
                 {activeView === 'patients' && (
                   <Patients
                     authToken={authToken}
                     apiBaseUrl={API_BASE_URL}
                     isOffline={currentUser?.isOffline}
                     currentUser={currentUser}
+                    onProceedToTreatment={(caseData) => {
+                      setTreatmentCaseData(caseData)
+                      setActiveView('treatment')
+                    }}
                   />
                 )}
                 {activeView === 'staff' && currentUser?.role === 'Clinic Admin' && <Staff authToken={authToken} apiBaseUrl={API_BASE_URL} />}
+                {activeView === 'treatment' && (
+                  <Treatment
+                    currentUser={currentUser}
+                    caseData={treatmentCaseData}
+                    onBack={() => {
+                      setTreatmentCaseData(null)
+                      setActiveView('patients')
+                    }}
+                  />
+                )}
                 {activeView === 'sync' && <Sync authToken={authToken} apiBaseUrl={API_BASE_URL} currentUser={currentUser} />}
               </>
             )}
