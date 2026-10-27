@@ -119,7 +119,7 @@ export async function loadVetLinkModel() {
       numThreads: 1,
     })
 
-    console.log('[VetLink AI] ✅ Model initialized with single-thread WASM. Classes:', classLabels)
+    console.log('[VetLink AI] Model initialized with single-thread WASM. Classes:', classLabels)
     return model
   } finally {
     isLoading = false
@@ -423,7 +423,7 @@ export function validateClinicalImageQuality(imgElement) {
       return {
         isValid: false,
         reason: 'TOO_DARK',
-        title: '📷 Image Rejected: Insufficient Lighting (Too Dark)',
+        title: 'Image Rejected: Insufficient Lighting (Too Dark)',
         message: `Average image brightness is only ${Math.round((meanLuminance / 255) * 100)}%. In dark shadows, fine lesion margins, erythema, and pustules cannot be differentiated from healthy fur.`,
         instructions: 'Please move the animal into a well-lit area or turn on device lighting before retaking.',
       }
@@ -434,7 +434,7 @@ export function validateClinicalImageQuality(imgElement) {
       return {
         isValid: false,
         reason: 'OVEREXPOSED',
-        title: '☀️ Image Rejected: Severe Glare / Overexposure',
+        title: 'Image Rejected: Severe Glare / Overexposure',
         message: 'Severe flash washout or direct glare detected across the lesion. White glare erases skin inflammation, crusting, and micro-textures.',
         instructions: 'Please tilt the camera slightly away from direct flash reflection and retake without harsh glare.',
       }
@@ -451,7 +451,7 @@ export function validateClinicalImageQuality(imgElement) {
       return {
         isValid: false,
         reason: 'UNIFORM_SURFACE',
-        title: '🧱 Image Rejected: Blank / Obstructed Surface',
+        title: 'Image Rejected: Blank / Obstructed Surface',
         message: 'A flat, uniform surface (such as a wall, desk, paper, or camera blockage) was detected without visible skin or fur textures.',
         instructions: 'Please ensure the camera is aimed directly at the animal patient\'s skin or fur lesion.',
       }
@@ -485,7 +485,7 @@ export function validateClinicalImageQuality(imgElement) {
       return {
         isValid: false,
         reason: 'BLURRY',
-        title: '🔍 Image Rejected: Motion Blur / Out of Focus',
+        title: 'Image Rejected: Motion Blur / Out of Focus',
         message: `Image sharpness score is ${lapVariance} (minimum clinical threshold: 45.0). Blurry images smear fine scabs and pustules, causing diagnostic errors.`,
         instructions: 'Please hold the device steady, tap the lesion area on screen to focus, and capture again.',
         score: lapVariance,
@@ -499,7 +499,7 @@ export function validateClinicalImageQuality(imgElement) {
       return {
         isValid: false,
         reason: 'DIGITAL_SCREEN',
-        title: '💻 Image Rejected: Computer Monitor / Digital Screen Detected',
+        title: 'Image Rejected: Computer Monitor / Digital Screen Detected',
         message: 'The captured frame appears to be a computer monitor, software interface, or digital display rather than an animal patient. VetLink only analyzes direct photos of animal skin or fur lesions.',
         instructions: 'Please point your camera directly at the animal patient (dog, cat, bird, or rabbit) with proper focus on the lesion.',
       }
@@ -510,7 +510,7 @@ export function validateClinicalImageQuality(imgElement) {
       return {
         isValid: false,
         reason: 'NON_BIOLOGICAL',
-        title: '⚠️ Image Rejected: Non-Biological Subject Detected',
+        title: 'Image Rejected: Non-Biological Subject Detected',
         message: 'The frame appears to capture a digital screen, synthetic graphic, or non-organic surface rather than animal tissue.',
         instructions: 'Please point your camera at an actual animal skin lesion.',
       }

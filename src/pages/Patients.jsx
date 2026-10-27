@@ -39,13 +39,8 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
   const [isSaving, setIsSaving] = useState(false)
   const [selectedSpecies, setSelectedSpecies] = useState('All')
 
-  const getSpeciesAvatar = (species) => {
-    const s = String(species || '').toLowerCase()
-    if (s.includes('canine') || s.includes('dog')) return '🐕'
-    if (s.includes('feline') || s.includes('cat')) return '🐈'
-    if (s.includes('avian') || s.includes('bird')) return '🦜'
-    if (s.includes('rabbit') || s.includes('lagomorph')) return '🐇'
-    return '🐾'
+  const getSpeciesAvatar = (patient) => {
+    return (patient?.name || patient?.species || 'P').charAt(0).toUpperCase()
   }
 
   // Clinical Review & Edit Case Modal State (Veterinarian / Admin Review)
@@ -244,7 +239,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
       }
 
       await refreshPatients()
-      setSuccessMessage(`✓ Clinical review successfully updated for ${reviewPatient.name} (${clinicalStatus})!`)
+      setSuccessMessage(`Clinical review successfully updated for ${reviewPatient.name} (${clinicalStatus}).`)
       setReviewPatient(null)
     } catch (err) {
       console.error('Failed to save clinical review:', err)
@@ -259,28 +254,28 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
     if (norm.includes('awaiting lab') || norm.includes('lab test')) {
       return (
         <span className="status-badge" style={{ background: '#fef3c7', color: '#92400e', border: '1px solid #fde68a', fontWeight: 600 }}>
-          🧪 Awaiting Lab Test
+          Awaiting Lab Test
         </span>
       )
     }
     if (norm.includes('needs vet') || (norm.includes('review') && norm.includes('needs'))) {
       return (
         <span className="status-badge" style={{ background: '#fef9c3', color: '#854d0e', border: '1px solid #fef08a', fontWeight: 600 }}>
-          🟡 Needs Vet Review
+          Needs Vet Review
         </span>
       )
     }
     if (norm.includes('review results') || norm.includes('review')) {
       return (
         <span className="status-badge" style={{ background: '#dcfce7', color: '#166534', border: '1px solid #86efac', fontWeight: 600 }}>
-          🟢 Review Results
+          Review Results
         </span>
       )
     }
     if (norm.includes('completed') || norm.includes('discharged')) {
       return (
         <span className="status-badge" style={{ background: '#dbeafe', color: '#1e40af', border: '1px solid #bfdbfe', fontWeight: 600 }}>
-          ✅ Completed
+          Completed
         </span>
       )
     }
@@ -353,7 +348,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
 
     // Strict Clinical Validation: Follow-up lesion image is strictly mandatory
     if (!recheckFile) {
-      setRecheckError('⚠️ Required: Please capture or upload a follow-up lesion image for recheck evaluation.')
+      setRecheckError('Required: Please capture or upload a follow-up lesion image for recheck evaluation.')
       setIsSavingRecheck(false)
       return
     }
@@ -410,7 +405,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
       })
 
       await refreshPatients()
-      setSuccessMessage(`✓ Follow-up recheck consultation successfully saved for ${recheckPatient.name}!`)
+      setSuccessMessage(`Follow-up recheck consultation successfully saved for ${recheckPatient.name}.`)
       setRecheckPatient(null)
     } catch (err) {
       console.error('Failed to save recheck:', err)
@@ -431,10 +426,10 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
               className={`filter-pill ${selectedSpecies === sp ? 'active' : ''}`}
               onClick={() => setSelectedSpecies(sp)}
             >
-              {sp === 'Canine' && '🐕 '}
-              {sp === 'Feline' && '🐈 '}
-              {sp === 'Avian' && '🦜 '}
-              {sp === 'Lagomorph' && '🐇 '}
+              {sp === 'Canine' }
+              {sp === 'Feline' }
+              {sp === 'Avian' }
+              {sp === 'Lagomorph' }
               {sp}
             </button>
           ))}
@@ -506,7 +501,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
               <tr key={patient.id}>
                 <td>
                   <div className="patient-avatar-circle" title={patient.species}>
-                    {getSpeciesAvatar(patient.species)}
+                    {getSpeciesAvatar(patient)}
                   </div>
                 </td>
                 <td>
@@ -530,12 +525,12 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                     </div>
                     {patient.ownerName && (
                       <span style={{ fontSize: '0.78rem', color: '#0284c7', display: 'block', marginTop: '2px' }}>
-                        👤 {patient.ownerName} {patient.ownerPhone ? `• 📞 ${patient.ownerPhone}` : ''}
+                        {patient.ownerName} {patient.ownerPhone ? `• ${patient.ownerPhone}` : ''}
                       </span>
                     )}
                     {(patient.weight || patient.age) && (
                       <span style={{ fontSize: '0.75rem', color: '#64748b', display: 'block' }}>
-                        {patient.weight ? `⚖️ ${patient.weight} kg` : ''} {patient.weight && patient.age ? '• ' : ''}{patient.age ? `🎂 ${patient.age}` : ''}
+                        {patient.weight ? `${patient.weight} kg` : ''} {patient.weight && patient.age ? '• ' : ''}{patient.age ? `Age: ${patient.age}` : ''}
                       </span>
                     )}
                     {patient.areaOfConcern && (
@@ -699,7 +694,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
           <div className="modal-dialog" style={{ maxWidth: 760, maxHeight: '92vh', overflowY: 'auto' }}>
             <header className="modal-header">
               <h3 id="review-patient-title">
-                🩺 Clinical Case Review: {reviewPatient.name} ({reviewPatient.species})
+                Clinical Case Review: {reviewPatient.name} ({reviewPatient.species})
               </h3>
               <button className="modal-close-btn" type="button" onClick={() => setReviewPatient(null)} aria-label="Close dialog">✕</button>
             </header>
@@ -735,7 +730,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                   {reviewPatient.ownerName && (
                     <div>
                       <strong>Owner:</strong> {reviewPatient.ownerName}
-                      {reviewPatient.ownerPhone ? ` (📞 ${reviewPatient.ownerPhone})` : ''}
+                      {reviewPatient.ownerPhone ? ` (${reviewPatient.ownerPhone})` : ''}
                     </div>
                   )}
                   <div><strong>Intake Date:</strong> {reviewPatient.lastVisit || 'Today'}</div>
@@ -774,7 +769,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                           border: '1px solid #bae6fd',
                         }}
                       >
-                        ✓ {s.customDescription ? `Other: ${s.customDescription}` : s.symptomId.replace('SYM-', '')}
+                        {s.customDescription ? `Other: ${s.customDescription}` : s.symptomId.replace('SYM-', '')}
                       </span>
                     ))}
                   </div>
@@ -799,7 +794,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                       checked={clinicalStatus === 'Review Results'}
                       onChange={(e) => setClinicalStatus(e.target.value)}
                     />
-                    <span>🟢 <strong>Review Results</strong> (High Confidence)</span>
+                    <span><strong>Review Results</strong> (High Confidence)</span>
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '8px 10px', background: clinicalStatus.includes('Needs') ? '#fef9c3' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1' }}>
                     <input
@@ -809,7 +804,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                       checked={clinicalStatus === 'Needs Vet Review'}
                       onChange={(e) => setClinicalStatus(e.target.value)}
                     />
-                    <span>🟡 <strong>Needs Vet Review</strong> (Comorbid/Borderline)</span>
+                    <span><strong>Needs Vet Review</strong> (Comorbid/Borderline)</span>
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '8px 10px', background: clinicalStatus.includes('Lab') ? '#fef3c7' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1' }}>
                     <input
@@ -819,7 +814,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                       checked={clinicalStatus === 'Awaiting Lab Test'}
                       onChange={(e) => setClinicalStatus(e.target.value)}
                     />
-                    <span>🧪 <strong>Awaiting Lab Test</strong> (Skin Scrape / DTM)</span>
+                    <span><strong>Awaiting Lab Test</strong> (Skin Scrape / DTM)</span>
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '8px 10px', background: clinicalStatus === 'Completed' ? '#dbeafe' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1' }}>
                     <input
@@ -829,7 +824,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                       checked={clinicalStatus === 'Completed'}
                       onChange={(e) => setClinicalStatus(e.target.value)}
                     />
-                    <span>✅ <strong>Finalized & Prescribed</strong></span>
+                    <span><strong>Finalized & Prescribed</strong></span>
                   </label>
                 </div>
               </div>
@@ -837,7 +832,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
               {/* 4. Clinical Diagnosis Override / Lab Confirmation */}
               <div style={{ marginTop: 12, padding: 12, background: '#fdf4ff', border: '1px solid #f5d0fe', borderRadius: 8 }}>
                 <span style={{ fontWeight: 'bold', fontSize: '0.84rem', color: '#86198f', display: 'block', marginBottom: 4 }}>
-                  🔬 Verified Diagnosis / Clinical Override:
+                  Verified Diagnosis / Clinical Override:
                 </span>
                 <p style={{ margin: '0 0 8px', fontSize: '0.78rem', color: '#581c87' }}>
                   If laboratory diagnostics (skin scrape / cytology) or clinician examination differs from the initial scan, select verified condition:
@@ -851,7 +846,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                   {CLINICAL_DIAGNOSES.map((d) => (
                     <option key={d} value={d}>{d}</option>
                   ))}
-                  <option value="OTHER">➕ Other / Custom Dermatological Condition...</option>
+                  <option value="OTHER">Other / Custom Dermatological Condition...</option>
                 </select>
 
                 {overrideDiag === 'OTHER' && (
@@ -917,11 +912,11 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                         setReviewPatient(null)
                       }}
                     >
-                      🖨️ Proceed to Treatment / Rx
+                      Proceed to Treatment / Rx
                     </button>
                   )}
                   <button className="action-btn blue" type="submit" disabled={isSavingReview}>
-                    {isSavingReview ? 'Saving...' : '💾 Save Case Decisions'}
+                    {isSavingReview ? 'Saving...' : 'Save Case Decisions'}
                   </button>
                 </div>
               </div>
@@ -935,7 +930,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
           <div className="modal-dialog" style={{ maxWidth: 720, maxHeight: '90vh', overflowY: 'auto' }}>
             <header className="modal-header">
               <h3 id="recheck-patient-title">
-                🩺 Follow-Up Recheck: {recheckPatient.name} ({recheckPatient.species})
+                Follow-Up Recheck: {recheckPatient.name} ({recheckPatient.species})
               </h3>
               <button className="modal-close-btn" type="button" onClick={() => setRecheckPatient(null)} aria-label="Close dialog">✕</button>
             </header>
@@ -1034,7 +1029,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                           }}
                           onClick={() => setIsRecheckCameraOpen(true)}
                         >
-                          <span>📸</span> Retake (Camera)
+                          Retake (Camera)
                         </button>
                         <button
                           type="button"
@@ -1050,7 +1045,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                           }}
                           onClick={() => recheckInputRef.current?.click()}
                         >
-                          <span>📁</span> Upload File
+                          Upload File
                         </button>
                       </div>
                     </div>
@@ -1071,7 +1066,10 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                         boxSizing: 'border-box',
                       }}
                     >
-                      <span style={{ fontSize: '1.6rem' }}>📷</span>
+                      <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#16a34a" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                        <circle cx="12" cy="13" r="4" />
+                      </svg>
                       <span style={{ fontSize: '0.8rem', fontWeight: 600, color: '#166534', textAlign: 'center' }}>
                         Snap or Upload Today's Photo
                       </span>
@@ -1091,7 +1089,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                           }}
                           onClick={() => setIsRecheckCameraOpen(true)}
                         >
-                          <span>📸</span> Live Camera
+                          Live Camera
                         </button>
                         <button
                           type="button"
@@ -1109,7 +1107,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                           }}
                           onClick={() => recheckInputRef.current?.click()}
                         >
-                          <span>📁</span> Upload File
+                          Upload File
                         </button>
                       </div>
                     </div>
@@ -1136,7 +1134,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                   </span>
                   {currentUser?.role === 'Clinic Staff' && (
                     <span style={{ fontSize: '0.72rem', background: '#fef3c7', color: '#92400e', padding: '2px 8px', borderRadius: 4, fontWeight: 700 }}>
-                      🔒 Restricted to Veterinarian
+                      Restricted to Veterinarian
                     </span>
                   )}
                 </div>
@@ -1157,7 +1155,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                       disabled={currentUser?.role === 'Clinic Staff'}
                       onChange={(e) => setRecheckProgress(e.target.value)}
                     />
-                    <span>🟢 <strong>Resolved / Fully Healed</strong> — Lesion cleared, fur regrown, no active erythema</span>
+                    <span><strong>Resolved / Fully Healed</strong> — Lesion cleared, fur regrown, no active erythema</span>
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: currentUser?.role === 'Clinic Staff' ? 'not-allowed' : 'pointer', padding: '6px 10px', background: recheckProgress === 'improving' ? '#fef9c3' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1', opacity: currentUser?.role === 'Clinic Staff' ? 0.75 : 1 }}>
                     <input
@@ -1168,7 +1166,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                       disabled={currentUser?.role === 'Clinic Staff'}
                       onChange={(e) => setRecheckProgress(e.target.value)}
                     />
-                    <span>🟡 <strong>Responding / Improving</strong> — Lesion reduced by ~50–80%, healthy scabbing present</span>
+                    <span><strong>Responding / Improving</strong> — Lesion reduced by ~50–80%, healthy scabbing present</span>
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: currentUser?.role === 'Clinic Staff' ? 'not-allowed' : 'pointer', padding: '6px 10px', background: recheckProgress === 'unchanged' ? '#fee2e2' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1', opacity: currentUser?.role === 'Clinic Staff' ? 0.75 : 1 }}>
                     <input
@@ -1179,7 +1177,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                       disabled={currentUser?.role === 'Clinic Staff'}
                       onChange={(e) => setRecheckProgress(e.target.value)}
                     />
-                    <span>🔴 <strong>Refractory / Unchanged</strong> — No clinical response; alternative medication indicated</span>
+                    <span><strong>Refractory / Unchanged</strong> — No clinical response; alternative medication indicated</span>
                   </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: currentUser?.role === 'Clinic Staff' ? 'not-allowed' : 'pointer', padding: '6px 10px', background: recheckProgress === 'new_complication' ? '#f3e8ff' : '#f8fafc', borderRadius: 6, border: '1px solid #cbd5e1', opacity: currentUser?.role === 'Clinic Staff' ? 0.75 : 1 }}>
                     <input
@@ -1190,7 +1188,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                       disabled={currentUser?.role === 'Clinic Staff'}
                       onChange={(e) => setRecheckProgress(e.target.value)}
                     />
-                    <span>🟣 <strong>Suspected New Complication</strong> — Secondary infection or new separate lesion detected</span>
+                    <span><strong>Suspected New Complication</strong> — Secondary infection or new separate lesion detected</span>
                   </label>
                 </div>
               </div>
@@ -1210,7 +1208,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
               <div className="modal-actions" style={{ marginTop: 14 }}>
                 <button className="small-outline" type="button" onClick={() => setRecheckPatient(null)} disabled={isSavingRecheck}>Cancel</button>
                 <button className="primary-btn" type="submit" disabled={isSavingRecheck}>
-                  {isSavingRecheck ? 'Saving...' : '💾 Save Follow-Up Recheck'}
+                  {isSavingRecheck ? 'Saving...' : 'Save Follow-Up Recheck'}
                 </button>
               </div>
             </form>

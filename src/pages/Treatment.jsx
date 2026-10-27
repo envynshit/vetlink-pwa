@@ -4,7 +4,7 @@ import { updateConsultation } from '../db/database'
 export const BASE_TREATMENT_PROTOCOLS = {
   // ── Canine (Aso) Protocols (Exact 11 dataset classes) ─────────
   'Canine Mange': {
-    category: '🐶 Canine Protocols (Aso)',
+    category: 'Canine Protocols (Aso)',
     species: 'Canine',
     baseCondition: 'Mange',
     treatment: [
@@ -17,7 +17,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Sarcoptic mange (scabies) is highly contagious and zoonotic. Handlers should wear disposable gloves until skin scrapings confirm mite elimination.',
   },
   'Canine Ringworm': {
-    category: '🐶 Canine Protocols (Aso)',
+    category: 'Canine Protocols (Aso)',
     species: 'Canine',
     baseCondition: 'Ringworm',
     treatment: [
@@ -30,7 +30,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Dermatophytosis is contagious and zoonotic. Continue treatment until negative fungal culture or Wood\'s lamp clearance.',
   },
   'Canine Pyoderma': {
-    category: '🐶 Canine Protocols (Aso)',
+    category: 'Canine Protocols (Aso)',
     species: 'Canine',
     baseCondition: 'Pyoderma',
     treatment: [
@@ -43,7 +43,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Recheck cytology in 2 weeks. Continue antibiotic therapy for a minimum of 7 days past complete clinical lesion resolution.',
   },
   'Canine Hot Spots': {
-    category: '🐶 Canine Protocols (Aso)',
+    category: 'Canine Protocols (Aso)',
     species: 'Canine',
     baseCondition: 'Hot Spots',
     treatment: [
@@ -56,7 +56,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Acute moist dermatitis is often secondary to flea saliva allergy, ear canal infection, or atopy. Taper corticosteroid spray once lesion dries.',
   },
   'Canine Healthy': {
-    category: '🐶 Canine Protocols (Aso)',
+    category: 'Canine Protocols (Aso)',
     species: 'Canine',
     baseCondition: 'Healthy',
     treatment: [
@@ -71,20 +71,20 @@ export const BASE_TREATMENT_PROTOCOLS = {
 
   // ── Feline (Pusa) Protocols (Feline-Safe Pharmacology) ─────────
   'Feline Mange': {
-    category: '🐱 Feline Protocols (Pusa)',
+    category: 'Feline Protocols (Pusa)',
     species: 'Feline',
     baseCondition: 'Mange',
     treatment: [
       'Feline-safe systemic spot-on acaricide (Selamectin / Revolution Plus or Fluralaner / Bravecto Plus for cats)',
       'Gentle leave-on antiseptic foam / mousse (avoid water baths which cause severe distress and hypothermia in cats)',
       'Thorough home premise sanitation; wash cat bedding and sanitise scratching posts in hot water (>60°C)',
-      '⚠️ Toxicological Safety: Strictly isolate cats from any dogs recently treated with canine permethrin products',
+      'Toxicological Safety: Strictly isolate cats from any dogs recently treated with canine permethrin products',
     ],
     prescription: 'Bravecto Plus Spot-on (Fluralaner/Moxidectin for Cats) 1 tube applied topically to skin at base of skull. Dispense Douxo S3 Pyo Mousse (apply 3x weekly without bathing).',
-    notes: '⚠️ FELINE TOXICOLOGY ALERT: Permethrin and organophosphates are lethal to felines. Never administer canine ectoparasiticides to cats. Notoedric mange requires 30-day isolation.',
+    notes: 'FELINE TOXICOLOGY ALERT: Permethrin and organophosphates are lethal to felines. Never administer canine ectoparasiticides to cats. Notoedric mange requires 30-day isolation.',
   },
   'Feline Ringworm': {
-    category: '🐱 Feline Protocols (Pusa)',
+    category: 'Feline Protocols (Pusa)',
     species: 'Feline',
     baseCondition: 'Ringworm',
     treatment: [
@@ -97,7 +97,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Cats are primary reservoir hosts for Microsporum canis. Monitor hepatic enzymes if therapy extends past 6 weeks. Treat until two consecutive weekly negative fungal cultures.',
   },
   'Feline Pyoderma': {
-    category: '🐱 Feline Protocols (Pusa)',
+    category: 'Feline Protocols (Pusa)',
     species: 'Feline',
     baseCondition: 'Pyoderma',
     treatment: [
@@ -110,7 +110,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Feline pyoderma often manifests as chin acne or crusty miliary dermatitis. Recheck tape impression cytology in 14 days.',
   },
   'Feline Hot Spots': {
-    category: '🐱 Feline Protocols (Pusa)',
+    category: 'Feline Protocols (Pusa)',
     species: 'Feline',
     baseCondition: 'Hot Spots',
     treatment: [
@@ -123,7 +123,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Cats groom compulsively with barbed papillae, rapidly eroding the epidermis. Investigate flea allergy dermatitis or psychogenic stress-induced alopecia.',
   },
   'Feline Healthy': {
-    category: '🐱 Feline Protocols (Pusa)',
+    category: 'Feline Protocols (Pusa)',
     species: 'Feline',
     baseCondition: 'Healthy',
     treatment: [
@@ -138,7 +138,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
 
   // ── Avian Protocols (Ibon) ─────────────────────────────────
   'Avian Fowl Pox': {
-    category: '🦜 Avian Protocols (Ibon)',
+    category: 'Avian Protocols (Ibon)',
     species: 'Avian',
     baseCondition: 'Avian Fowl Pox',
     treatment: [
@@ -151,7 +151,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Cutaneous (dry) fowl pox is self-limiting in 3–4 weeks. Seek emergency veterinary care if diphtheritic (wet/mouth) lesions or dyspnea develop.',
   },
   'Scaly Face / Leg Mite': {
-    category: '🦜 Avian Protocols (Ibon)',
+    category: 'Avian Protocols (Ibon)',
     species: 'Avian',
     baseCondition: 'Scaly Face / Leg Mite',
     treatment: [
@@ -164,7 +164,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Treat all in-contact cage mates. Monitor beak symmetry as chronic infestations can cause permanent beak malformation.',
   },
   'Healthy (Bird)': {
-    category: '🦜 Avian Protocols (Ibon)',
+    category: 'Avian Protocols (Ibon)',
     species: 'Avian',
     baseCondition: 'Healthy (Bird)',
     treatment: [
@@ -179,7 +179,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
 
   // ── Rabbit Protocols (Kuneho) ──────────────────────────────
   'Rabbit Mange': {
-    category: '🐇 Rabbit Protocols (Kuneho)',
+    category: 'Rabbit Protocols (Kuneho)',
     species: 'Rabbit',
     baseCondition: 'Rabbit Mange',
     treatment: [
@@ -192,7 +192,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Psoroptes cuniculi (ear mites) causes severe pain and crusting. Isolate from other rabbits until mite scraping confirms cure.',
   },
   'Rabbit Ringworm': {
-    category: '🐇 Rabbit Protocols (Kuneho)',
+    category: 'Rabbit Protocols (Kuneho)',
     species: 'Rabbit',
     baseCondition: 'Rabbit Ringworm',
     treatment: [
@@ -205,7 +205,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Dermatophytosis (ringworm) is zoonotic. Owners should wear disposable gloves during topical applications.',
   },
   'Healthy (Rabbit)': {
-    category: '🐇 Rabbit Protocols (Kuneho)',
+    category: 'Rabbit Protocols (Kuneho)',
     species: 'Rabbit',
     baseCondition: 'Healthy (Rabbit)',
     treatment: [
@@ -219,7 +219,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
 
   // ── Common Dual Presentations / Comorbidities ──────────────
   'Canine Mange + Secondary Pyoderma': {
-    category: '🩺 Common Dual Presentations',
+    category: 'Common Dual Presentations',
     species: 'Canine',
     treatment: [
       'Systemic isoxazoline acaricide (NexGard / Bravecto) for primary mite infestation eradication',
@@ -232,7 +232,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Severe excoriation and secondary bacterial infection due to chronic Sarcoptic / Demodectic mange. Recheck deep skin scraping and cytology in 14 days.',
   },
   'Canine Ringworm + Secondary Malassezia': {
-    category: '🩺 Common Dual Presentations',
+    category: 'Common Dual Presentations',
     species: 'Canine',
     treatment: [
       'Multi-spectrum topical antifungal & antimicrobial bath (Miconazole 2% + Chlorhexidine 2%) twice weekly with 10-minute lather time',
@@ -325,7 +325,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
   // Show "Add Custom Protocol" modal state
   const [showAddModal, setShowAddModal] = useState(false)
   const [newProtocolName, setNewProtocolName] = useState('')
-  const [newProtocolCategory, setNewProtocolCategory] = useState('🐶 Canine Protocols (Aso)')
+  const [newProtocolCategory, setNewProtocolCategory] = useState('Canine Protocols (Aso)')
   const [newProtocolSteps, setNewProtocolSteps] = useState('')
   const [newProtocolRx, setNewProtocolRx] = useState('')
   const [newProtocolNotes, setNewProtocolNotes] = useState('')
@@ -340,7 +340,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
   const primaryProtocol = protocols[activeProtocolKey] ||
                          protocols[selectedDisease] ||
                          protocols[diagnosis] || {
-    category: '✨ Custom Clinic Protocols',
+    category: 'Custom Clinic Protocols',
     treatment: [
       'Comprehensive clinical dermatological workup and lesion cleansing with sterile saline or dilute chlorhexidine',
       'Targeted etiology-specific medical intervention (antimicrobial, antifungal, or parasiticide as clinically indicated)',
@@ -374,9 +374,9 @@ export default function Treatment({ onBack, caseData, currentUser }) {
 
   // Comorbidity steps merging
   if (isComorbid && secondaryProtocol) {
-    treatmentSteps.push(`🩺 [CONCURRENT PROTOCOL: ${secondaryDiagnosis.toUpperCase()}] ${secondaryProtocol.treatment[0]}`)
+    treatmentSteps.push(`[CONCURRENT PROTOCOL: ${secondaryDiagnosis.toUpperCase()}] ${secondaryProtocol.treatment[0]}`)
     if (secondaryProtocol.treatment[1]) {
-      treatmentSteps.push(`🩺 [ADJUNCT STEP] ${secondaryProtocol.treatment[1]}`)
+      treatmentSteps.push(`[ADJUNCT STEP] ${secondaryProtocol.treatment[1]}`)
     }
   }
 
@@ -385,11 +385,11 @@ export default function Treatment({ onBack, caseData, currentUser }) {
                                (diagnosis.toLowerCase().includes('ringworm') && secondaryDiagnosis?.toLowerCase().includes('hot'))
 
   if (isHotSpotAndRingworm) {
-    treatmentSteps.push(`⚠️ [STEROID CAUTION IN DUAL PRESENTATION] Topical corticosteroids rapidly control acute hot spot pain, but can exacerbate dermatophyte (Ringworm) proliferation. Taper steroid as soon as lesion dries, and maintain continuous antifungal application.`)
+    treatmentSteps.push(`[STEROID CAUTION IN DUAL PRESENTATION] Topical corticosteroids rapidly control acute hot spot pain, but can exacerbate dermatophyte (Ringworm) proliferation. Taper steroid as soon as lesion dries, and maintain continuous antifungal application.`)
   }
 
   if (isSubThreshold) {
-    treatmentSteps.unshift('⚠️ [CONFIRMATORY LAB TESTING INDICATED] Pre-screening algorithmic confidence is below the 60% decision boundary. Attending veterinarian should execute secondary confirmatory diagnostics (microscopic skin scraping, fungal DTM culture, or tape cytology) to rule out differential conditions.')
+    treatmentSteps.unshift('[CONFIRMATORY LAB TESTING INDICATED] Pre-screening algorithmic confidence is below the 60% decision boundary. Attending veterinarian should execute secondary confirmatory diagnostics (microscopic skin scraping, fungal DTM culture, or tape cytology) to rule out differential conditions.')
   }
 
   // Initial combined prescription text
@@ -437,9 +437,9 @@ export default function Treatment({ onBack, caseData, currentUser }) {
           treatmentPlan: prescription,
           clinicalNotes: clinicalNotes,
         })
-        setSaveMessage('✓ Treatment plan and customized prescription successfully saved to patient medical record!')
+        setSaveMessage('Treatment plan and customized prescription successfully saved to patient medical record.')
       } else {
-        setSaveMessage('✓ Clinical protocol verified. (Reference mode — ready for clinical execution).')
+        setSaveMessage('Clinical protocol verified. (Reference mode — ready for clinical execution).')
       }
     } catch (err) {
       console.error('Failed to save treatment plan:', err)
@@ -455,14 +455,14 @@ export default function Treatment({ onBack, caseData, currentUser }) {
       const updated = {
         ...protocols,
         [selectedDisease]: {
-          ...(protocols[selectedDisease] || { category: '✨ Custom Clinic Protocols', treatment: treatmentSteps }),
+          ...(protocols[selectedDisease] || { category: 'Custom Clinic Protocols', treatment: treatmentSteps }),
           prescription: prescription,
           notes: clinicalNotes,
         },
       }
       setProtocols(updated)
       localStorage.setItem(STORAGE_KEY, JSON.stringify(updated))
-      setSaveMessage(`✓ Protocol template for "${selectedDisease}" successfully saved as Clinic SOP!`)
+      setSaveMessage(`Protocol template for "${selectedDisease}" successfully saved as Clinic SOP.`)
     } catch (err) {
       console.error('Failed to save clinic SOP:', err)
       setSaveError('Failed to save protocol template to local clinic storage.')
@@ -505,7 +505,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
     setNewProtocolSteps('')
     setNewProtocolRx('')
     setNewProtocolNotes('')
-    setSaveMessage(`✓ New protocol "${name}" added to Clinic Protocol Library!`)
+    setSaveMessage(`New protocol "${name}" added to Clinic Protocol Library.`)
   }
 
   // Reset to default guidelines
@@ -514,7 +514,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
       localStorage.removeItem(STORAGE_KEY)
       setProtocols(BASE_TREATMENT_PROTOCOLS)
       setSelectedDisease('Canine Mange')
-      setSaveMessage('✓ Protocols successfully reset to standard clinical guidelines.')
+      setSaveMessage('Protocols successfully reset to standard clinical guidelines.')
     }
   }
 
@@ -527,28 +527,28 @@ export default function Treatment({ onBack, caseData, currentUser }) {
 
   // Group protocol names for the categorized dropdown
   const categories = {
-    '🐶 Canine Protocols (Aso)': [],
-    '🐱 Feline Protocols (Pusa)': [],
-    '🦜 Avian Protocols (Ibon)': [],
-    '🐇 Rabbit Protocols (Kuneho)': [],
-    '🩺 Common Dual Presentations': [],
-    '✨ Custom Clinic Protocols': [],
+    'Canine Protocols (Aso)': [],
+    'Feline Protocols (Pusa)': [],
+    'Avian Protocols (Ibon)': [],
+    'Rabbit Protocols (Kuneho)': [],
+    'Common Dual Presentations': [],
+    'Custom Clinic Protocols': [],
   }
 
   Object.entries(protocols).forEach(([key, val]) => {
-    const cat = val.category || '🐶 Canine Protocols (Aso)'
+    const cat = val.category || 'Canine Protocols (Aso)'
     if (cat.includes('Feline')) {
-      categories['🐱 Feline Protocols (Pusa)'].push(key)
+      categories['Feline Protocols (Pusa)'].push(key)
     } else if (cat.includes('Avian')) {
-      categories['🦜 Avian Protocols (Ibon)'].push(key)
+      categories['Avian Protocols (Ibon)'].push(key)
     } else if (cat.includes('Rabbit')) {
-      categories['🐇 Rabbit Protocols (Kuneho)'].push(key)
+      categories['Rabbit Protocols (Kuneho)'].push(key)
     } else if (cat.includes('Dual')) {
-      categories['🩺 Common Dual Presentations'].push(key)
+      categories['Common Dual Presentations'].push(key)
     } else if (cat.includes('Custom')) {
-      categories['✨ Custom Clinic Protocols'].push(key)
+      categories['Custom Clinic Protocols'].push(key)
     } else {
-      categories['🐶 Canine Protocols (Aso)'].push(key)
+      categories['Canine Protocols (Aso)'].push(key)
     }
   })
 
@@ -616,7 +616,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
                       gap: 4,
                     }}
                   >
-                    <span>➕</span> Add New Protocol
+                    + Add New Protocol
                   </button>
                 )}
                 {isVetOrAdmin && (
@@ -699,11 +699,11 @@ export default function Treatment({ onBack, caseData, currentUser }) {
             color: 'white',
             display: 'grid',
             placeItems: 'center',
-            fontSize: '1.2rem',
+            fontSize: '1rem',
             fontWeight: 800,
             flexShrink: 0,
           }}>
-            {isAwaitingLab ? '🧪' : '✓'}
+            {isAwaitingLab ? '!' : '✓'}
           </div>
           <div>
             <h2 style={{ margin: 0, fontSize: '1.15rem', color: isAwaitingLab ? '#92400e' : '#065f46', fontWeight: 800 }}>
@@ -752,7 +752,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
                   CLINICAL DIAGNOSTIC WORKUP ORDER
                 </span>
                 <h3 style={{ margin: '2px 0 0', fontSize: '1.2rem', color: '#92400e', fontWeight: 800 }}>
-                  🔬 Laboratory Requisition Order Slip
+                  Laboratory Requisition Order Slip
                 </h3>
               </div>
               <span style={{ background: '#fef3c7', color: '#92400e', padding: '4px 10px', borderRadius: 6, fontSize: '0.78rem', fontWeight: 700 }}>
@@ -768,7 +768,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
                 <strong>Patient ID:</strong> {patient?.id || 'Pending'}
               </div>
               <div>
-                <strong>Owner:</strong> {patient?.ownerName || 'None recorded'} {patient?.ownerPhone ? `(📞 ${patient.ownerPhone})` : ''}<br />
+                <strong>Owner:</strong> {patient?.ownerName || 'None recorded'} {patient?.ownerPhone ? `(${patient.ownerPhone})` : ''}<br />
                 <strong>Ordering Clinician:</strong> Dr. Sarah Lin, DVM<br />
                 <strong>Suspected Condition:</strong> <u>{diagnosis}</u> {secondaryDiagnosis ? `+ ${secondaryDiagnosis}` : ''}<br />
                 <strong>AI Pre-screen Flag:</strong> {aiResult?.percent || '<60%'} (FR7 Calibrated Threshold)
@@ -780,22 +780,22 @@ export default function Treatment({ onBack, caseData, currentUser }) {
                 Mandated Diagnostic Laboratory Workups:
               </h4>
               <div style={{ display: 'grid', gap: 8, fontSize: '0.85rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-                  <span style={{ color: '#0284c7', fontSize: '1.1rem' }}>☑</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                  <span style={{ width: 18, height: 18, borderRadius: 4, background: '#0284c7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>✓</span>
                   <div>
                     <strong>Direct Microscopic Skin Scraping (Mineral Oil / 10% KOH):</strong>
                     <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Evaluate for deep Demodex canis/gatoi mites or superficial Sarcoptes scabiei / Notoedres cati mites.</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-                  <span style={{ color: '#0284c7', fontSize: '1.1rem' }}>☑</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                  <span style={{ width: 18, height: 18, borderRadius: 4, background: '#0284c7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>✓</span>
                   <div>
-                    <strong>Wood\'s Lamp Fluorometric Examination & DTM Fungal Culture:</strong>
+                    <strong>Wood&apos;s Lamp Fluorometric Examination &amp; DTM Fungal Culture:</strong>
                     <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Screen for apple-green pteridine fluorescence and inoculate Dermatophyte Test Medium to confirm Microsporum canis / Trichophyton.</div>
                   </div>
                 </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
-                  <span style={{ color: '#0284c7', fontSize: '1.1rem' }}>☑</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 12px', background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 8 }}>
+                  <span style={{ width: 18, height: 18, borderRadius: 4, background: '#0284c7', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: '0.75rem', fontWeight: 700, flexShrink: 0 }}>✓</span>
                   <div>
                     <strong>Acetate Tape Impression Cytology (Diff-Quik Stain):</strong>
                     <div style={{ fontSize: '0.78rem', color: '#64748b' }}>Quantify bacterial cocci (Staphylococcus pseudintermedius) and Malassezia pachydermatis peanut-shaped yeast organisms.</div>
@@ -805,7 +805,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
             </div>
 
             <div style={{ padding: 12, background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, fontSize: '0.82rem', color: '#991b1b', lineHeight: 1.45 }}>
-              🛡️ <strong>Medical Safety Rule:</strong> Pharmacological prescription is legally and clinically withheld. In accordance with the Philippine Veterinary Medicine Act and clinical standards, systemic antibiotics, acaricides, or antifungals will only be dispensed once diagnostic cytology or scraping is verified by the attending veterinarian.
+              <strong>Medical Safety Rule:</strong> Pharmacological prescription is legally and clinically withheld. In accordance with the Philippine Veterinary Medicine Act and clinical standards, systemic antibiotics, acaricides, or antifungals will only be dispensed once diagnostic cytology or scraping is verified by the attending veterinarian.
             </div>
           </div>
         ) : (
@@ -816,7 +816,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
               <div className="treatment-section-body" style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 8 }}>
                   <span style={{ fontSize: '1.25rem', fontWeight: 'bold', color: '#1e293b' }}>
-                    {diagnosis} {isOverridden ? '🔬 (Clinical Override)' : ''}
+                    {diagnosis} {isOverridden ? '(Clinical Override)' : ''}
                   </span>
                   <span style={{ fontSize: '0.82rem', padding: '3px 8px', borderRadius: 6, background: '#f1f5f9', color: '#334155', fontWeight: 700 }}>
                     Protocol: {primaryProtocol.category || patientSpecies}
@@ -829,12 +829,12 @@ export default function Treatment({ onBack, caseData, currentUser }) {
                 </div>
                 {isComorbid && secondaryDiagnosis && (
                   <div style={{ padding: '6px 10px', background: '#dbeafe', borderRadius: 6, border: '1px solid #93c5fd', color: '#1e40af', fontSize: '0.85rem' }}>
-                    🩺 <strong>Concurrent Co-Occurring Condition:</strong> {secondaryDiagnosis} (Secondary opportunistic infection)
+                    <strong>Concurrent Co-Occurring Condition:</strong> {secondaryDiagnosis} (Secondary opportunistic infection)
                   </div>
                 )}
                 {isOverridden && caseData?.overrideNotes && (
                   <div style={{ padding: '6px 10px', background: '#fae8ff', borderRadius: 6, border: '1px solid #e879f9', color: '#701a75', fontSize: '0.85rem' }}>
-                    🔬 <strong>Veterinarian Clinical Reason:</strong> {caseData.overrideNotes}
+                    <strong>Veterinarian Clinical Reason:</strong> {caseData.overrideNotes}
                   </div>
                 )}
               </div>
@@ -846,11 +846,14 @@ export default function Treatment({ onBack, caseData, currentUser }) {
               </div>
               <div className="treatment-section-body treatment-list">
                 <ul>
-                  {treatmentSteps.map((step, idx) => (
-                    <li key={idx} style={step.startsWith('⚠️') ? { color: '#b45309', fontWeight: 600, background: '#fef3c7', padding: '6px 10px', borderRadius: 4, listStyleType: 'none', marginLeft: -20, marginBottom: 8 } : {}}>
-                      {step}
-                    </li>
-                  ))}
+                  {treatmentSteps.map((step, idx) => {
+                    const isAlert = step.includes('CAUTION') || step.includes('CONFIRMATORY') || step.includes('ALERT')
+                    return (
+                      <li key={idx} style={isAlert ? { color: '#b45309', fontWeight: 600, background: '#fef3c7', padding: '6px 10px', borderRadius: 4, listStyleType: 'none', marginLeft: -20, marginBottom: 8 } : {}}>
+                        {step}
+                      </li>
+                    )
+                  })}
                 </ul>
               </div>
             </div>
@@ -860,7 +863,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
               <div className="treatment-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>PRESCRIPTION DETAILS (EDITABLE BY VET)</span>
                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal', textTransform: 'none' }}>
-                  ✏️ Customize medication & dosage as needed
+                  Customize medication & dosage as needed
                 </span>
               </div>
               <div className="treatment-section-body">
@@ -889,7 +892,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
               <div className="treatment-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span>VETERINARIAN CLINICAL NOTES (EDITABLE BY VET)</span>
                 <span style={{ fontSize: '0.75rem', color: '#64748b', fontWeight: 'normal', textTransform: 'none' }}>
-                  ✏️ Add patient-specific precautions
+                  Add patient-specific precautions
                 </span>
               </div>
               <div className="treatment-section-body">
@@ -928,7 +931,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
                 onClick={handleSaveClinicSOP}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, borderColor: '#5ca797', color: '#0f766e' }}
               >
-                💾 Save as Clinic SOP
+                Save as Clinic SOP
               </button>
             )}
             <button
@@ -937,7 +940,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
               onClick={handlePrint}
               style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
             >
-              {isAwaitingLab ? '🖨️ Print Lab Requisition Slip' : '🖨️ Print Rx / Save PDF'}
+              {isAwaitingLab ? 'Print Lab Requisition Slip' : 'Print Rx / Save PDF'}
             </button>
             {!isLibraryMode && (
               <button
@@ -947,7 +950,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
                 disabled={isSaving}
                 style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
               >
-                💾 {isSaving ? 'Saving...' : 'Save & Finalize Treatment Plan'}
+                {isSaving ? 'Saving...' : 'Save & Finalize Treatment Plan'}
               </button>
             )}
           </div>
@@ -959,7 +962,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
         <div className="modal-overlay no-print" role="dialog" aria-modal="true">
           <div className="modal-dialog" style={{ maxWidth: 600 }}>
             <header className="modal-header">
-              <h3>➕ Add New Treatment Protocol to Clinic Library</h3>
+              <h3>Add New Treatment Protocol to Clinic Library</h3>
               <button className="modal-close-btn" type="button" onClick={() => setShowAddModal(false)}>✕</button>
             </header>
             <form onSubmit={handleAddNewProtocol} style={{ display: 'flex', flexDirection: 'column', gap: 12, padding: 16 }}>
@@ -982,12 +985,12 @@ export default function Treatment({ onBack, caseData, currentUser }) {
                   onChange={(e) => setNewProtocolCategory(e.target.value)}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #cbd5e1', marginTop: 4, boxSizing: 'border-box' }}
                 >
-                  <option value="🐶 Canine Protocols (Aso)">🐶 Canine Protocols (Aso)</option>
-                  <option value="🐱 Feline Protocols (Pusa)">🐱 Feline Protocols (Pusa)</option>
-                  <option value="🦜 Avian Protocols (Ibon)">🦜 Avian Protocols (Ibon)</option>
-                  <option value="🐇 Rabbit Protocols (Kuneho)">🐇 Rabbit Protocols (Kuneho)</option>
-                  <option value="🩺 Common Dual Presentations">🩺 Common Dual Presentations</option>
-                  <option value="✨ Custom Clinic Protocols">✨ Custom Clinic Protocols</option>
+                  <option value="Canine Protocols (Aso)">Canine Protocols (Aso)</option>
+                  <option value="Feline Protocols (Pusa)">Feline Protocols (Pusa)</option>
+                  <option value="Avian Protocols (Ibon)">Avian Protocols (Ibon)</option>
+                  <option value="Rabbit Protocols (Kuneho)">Rabbit Protocols (Kuneho)</option>
+                  <option value="Common Dual Presentations">Common Dual Presentations</option>
+                  <option value="Custom Clinic Protocols">Custom Clinic Protocols</option>
                 </select>
               </label>
 
@@ -1031,7 +1034,7 @@ export default function Treatment({ onBack, caseData, currentUser }) {
                   Cancel
                 </button>
                 <button type="submit" className="primary-btn">
-                  💾 Save to Clinic Library
+                  Save to Clinic Library
                 </button>
               </div>
             </form>

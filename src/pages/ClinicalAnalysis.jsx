@@ -332,17 +332,18 @@ export default function ClinicalAnalysis({ onNewPatient, onViewPatients, current
 
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px', marginTop: '14px' }}>
             {[
-              { label: 'Canine (Dogs)', count: metrics.speciesDistribution.canine, icon: '🐕', color: '#1e88e5' },
-              { label: 'Feline (Cats)', count: metrics.speciesDistribution.feline, icon: '🐈', color: '#ab47bc' },
-              { label: 'Avian (Birds)', count: metrics.speciesDistribution.avian, icon: '🦜', color: '#26a69a' },
-              { label: 'Rabbit / Exotic', count: metrics.speciesDistribution.rabbit, icon: '🐇', color: '#ffa726' },
+              { label: 'Canine (Dogs)', count: metrics.speciesDistribution.canine, color: '#1e88e5' },
+              { label: 'Feline (Cats)', count: metrics.speciesDistribution.feline, color: '#ab47bc' },
+              { label: 'Avian (Birds)', count: metrics.speciesDistribution.avian, color: '#26a69a' },
+              { label: 'Rabbit / Exotic', count: metrics.speciesDistribution.rabbit, color: '#ffa726' },
             ].map((sp, idx) => {
               const pct = Math.round((sp.count / totalSpeciesCount) * 100)
               return (
                 <div key={idx} style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.84rem' }}>
-                    <span style={{ fontWeight: '600' }}>
-                      {sp.icon} {sp.label}
+                    <span style={{ fontWeight: '600', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                      <span style={{ width: 8, height: 8, borderRadius: '50%', background: sp.color, display: 'inline-block' }} />
+                      {sp.label}
                     </span>
                     <span style={{ color: 'var(--muted)' }}>
                       {sp.count} ({metrics.totalPatients > 0 ? pct : 0}%)
@@ -475,15 +476,23 @@ export default function ClinicalAnalysis({ onNewPatient, onViewPatients, current
                   }}
                 >
                   <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '1.25rem' }}>
-                      {patient.species?.toLowerCase().includes('dog') || patient.species?.toLowerCase().includes('canine')
-                        ? '🐕'
-                        : patient.species?.toLowerCase().includes('cat') || patient.species?.toLowerCase().includes('feline')
-                        ? '🐈'
-                        : patient.species?.toLowerCase().includes('bird') || patient.species?.toLowerCase().includes('avian')
-                        ? '🦜'
-                        : '🐾'}
-                    </span>
+                    <div
+                      style={{
+                        width: '32px',
+                        height: '32px',
+                        borderRadius: '8px',
+                        background: 'var(--brand-surface, #e8f5e9)',
+                        color: 'var(--brand-primary, #1e88e5)',
+                        fontWeight: '700',
+                        fontSize: '0.85rem',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        flexShrink: 0,
+                      }}
+                    >
+                      {(patient.name || patient.species || 'P').charAt(0).toUpperCase()}
+                    </div>
                     <div>
                       <div style={{ fontWeight: '700', fontSize: '0.88rem', color: 'var(--text-h)' }}>
                         {patient.name}

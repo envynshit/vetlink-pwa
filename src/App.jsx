@@ -421,7 +421,7 @@ function App() {
               </button>
               {isInstalled ? (
                 <button type="button" className="action-btn secondary install-status-btn" disabled title="VetLink is installed on this device">
-                  ✓ App Installed
+                  App Installed
                 </button>
               ) : (
                 <button

@@ -178,7 +178,7 @@ export default function Sync({ authToken, apiBaseUrl = 'http://localhost:8000', 
             style={{ marginTop: 12 }}
             role="status"
           >
-            <span>{feedback.type === 'success' ? '✓ ' : '⚠ '}{feedback.message}</span>
+            <span>{feedback.message}</span>
             <button
               type="button"
               className="modal-close-btn"
