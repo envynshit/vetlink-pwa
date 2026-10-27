@@ -3,7 +3,7 @@ import { initDatabase } from '../db/database'
 
 /**
  * Settings page — Option A (Stacked Cards) layout.
- * Renders inside the dashboard-panel when the ⚙️ header icon is clicked.
+ * Renders inside the dashboard-panel when the Settings header icon is clicked.
  */
 export default function Settings({ currentUser, onBack }) {
   // --- Notifications state (persisted in localStorage) ---
@@ -653,7 +653,7 @@ export default function Settings({ currentUser, onBack }) {
               onClick={handleClearCache}
               disabled={isClearingCache}
             >
-              {isClearingCache ? 'Clearing…' : cacheCleared ? '✓ Cleared' : 'Clear Cache'}
+              {isClearingCache ? 'Clearing…' : cacheCleared ? 'Cache Cleared' : 'Clear Cache'}
             </button>
             <button
               type="button"

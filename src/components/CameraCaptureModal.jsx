@@ -231,7 +231,10 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
           }}
         >
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <span style={{ fontSize: '1.2rem' }}>📸</span>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" style={{ color: '#38bdf8' }}>
+              <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+              <circle cx="12" cy="13" r="4" />
+            </svg>
             <span style={{ fontWeight: 600, fontSize: '0.95rem', color: '#f8fafc' }}>
               {capturedBlobUrl ? 'Review Captured Photo' : 'Clinical Camera Viewfinder'}
             </span>
@@ -256,14 +259,20 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
         <div style={{ position: 'relative', width: '100%', height: 380, background: '#000', display: 'flex', alignItems: 'center', justifyContent: 'center', overflow: 'hidden' }}>
           {isInitializing && !capturedBlobUrl && (
             <div style={{ color: '#94a3b8', textAlign: 'center', padding: 20 }}>
-              <div style={{ fontSize: '1.8rem', marginBottom: 8 }}>⏳</div>
+              <div style={{ width: 28, height: 28, margin: '0 auto 10px', border: '3px solid #38bdf8', borderTopColor: 'transparent', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
               <p style={{ margin: 0, fontSize: '0.9rem' }}>Initializing camera stream...</p>
             </div>
           )}
 
           {cameraError && !capturedBlobUrl && (
             <div style={{ textAlign: 'center', padding: '24px 20px', maxWidth: 420 }}>
-              <div style={{ fontSize: '2.4rem', marginBottom: 12 }}>📷❌</div>
+              <div style={{ width: 44, height: 44, margin: '0 auto 12px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#f87171' }}>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <circle cx="12" cy="12" r="10" />
+                  <line x1="12" y1="8" x2="12" y2="12" />
+                  <line x1="12" y1="16" x2="12.01" y2="16" />
+                </svg>
+              </div>
               <h4 style={{ margin: '0 0 8px', color: '#f87171', fontSize: '1.05rem' }}>Camera Unavailable</h4>
               <p style={{ margin: '0 0 16px', color: '#cbd5e1', fontSize: '0.85rem', lineHeight: 1.45 }}>{cameraError}</p>
               {onFallbackUpload && (
@@ -276,7 +285,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                     onFallbackUpload()
                   }}
                 >
-                  📁 Choose Photo From Files Instead
+                  Choose Photo From Files Instead
                 </button>
               )}
             </div>
@@ -320,7 +329,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
               }}
             >
               <div style={{ textAlign: 'center', background: 'rgba(15, 23, 42, 0.75)', padding: '4px 8px', borderRadius: 4, alignSelf: 'center' }}>
-                <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 600 }}>🎯 TARGET LESION HERE</span>
+                <span style={{ fontSize: '0.72rem', color: '#38bdf8', fontWeight: 600 }}>ALIGN LESION IN FRAME</span>
               </div>
               <div style={{ textAlign: 'center', background: 'rgba(15, 23, 42, 0.75)', padding: '3px 8px', borderRadius: 4, alignSelf: 'center' }}>
                 <span style={{ fontSize: '0.68rem', color: '#94a3b8' }}>Fill 70% of box & hold steady</span>
@@ -348,7 +357,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                 style={{ flex: 1, padding: '10px 14px', background: '#334155', color: '#f8fafc', border: '1px solid #475569' }}
                 onClick={handleRetake}
               >
-                🔄 Retake Photo
+                Retake Photo
               </button>
               <button
                 type="button"
@@ -356,7 +365,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                 style={{ flex: 1.4, padding: '10px 14px', background: '#16a34a', color: '#fff', fontWeight: 600 }}
                 onClick={handleConfirmPhoto}
               >
-                ✓ Use This Photo
+                Confirm & Use Photo
               </button>
             </div>
           ) : (
@@ -377,7 +386,7 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                   onClick={handleToggleCamera}
                   disabled={!hasCamera || isInitializing}
                 >
-                  🔄 Flip Camera
+                  Flip Camera
                 </button>
               ) : onFallbackUpload ? (
                 <button
@@ -396,11 +405,10 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                     onFallbackUpload()
                   }}
                 >
-                  📁 Upload File
+                  Upload File
                 </button>
               ) : <div />}
 
-              {/* Snap Button */}
               <button
                 type="button"
                 style={{
@@ -415,14 +423,13 @@ export default function CameraCaptureModal({ isOpen, onClose, onCapture, onFallb
                   justifyContent: 'center',
                   cursor: hasCamera && !isInitializing ? 'pointer' : 'not-allowed',
                   opacity: hasCamera && !isInitializing ? 1 : 0.4,
-                  fontSize: '1.4rem',
                   boxShadow: '0 4px 14px rgba(239, 68, 68, 0.5)',
                 }}
                 onClick={handleSnapPhoto}
                 disabled={!hasCamera || isInitializing}
                 aria-label="Capture photo"
               >
-                ⚪
+                <span style={{ width: 22, height: 22, borderRadius: '50%', background: '#fff', display: 'block' }} />
               </button>
 
               <button

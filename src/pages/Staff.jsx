@@ -247,7 +247,7 @@ export default function Staff({ authToken, apiBaseUrl = 'http://localhost:8000' 
 
       {successMessage && (
         <div className="alert-banner success" role="status">
-          <span>✓ {successMessage}</span>
+          <span>{successMessage}</span>
           <button
             type="button"
             className="modal-close-btn"
@@ -261,7 +261,7 @@ export default function Staff({ authToken, apiBaseUrl = 'http://localhost:8000' 
 
       {errorMessage && (
         <div className="alert-banner error" role="alert">
-          <span>⚠ {errorMessage}</span>
+          <span>{errorMessage}</span>
           <button
             type="button"
             className="modal-close-btn"

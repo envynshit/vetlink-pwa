@@ -65,7 +65,7 @@ export function checkEarlyStageDifferential(aiResult, species, areaOfConcern = '
     if (hasMangeDifferentialContest) {
       return {
         type: 'ringworm_vs_mange',
-        title: '🔬 Clinical Differential Advisory (Mange vs. Ringworm)',
+        title: 'Clinical Differential Advisory (Mange vs. Ringworm)',
         message: `Diagnostic ambiguity detected: Preliminary AI scan favors Ringworm (${aiResult.percent || ''}), but Mange is also present in differential contenders (${(mangeConfidence * 100).toFixed(1)}%). Focal alopecia and facial/ear crusts share visual mimics between Demodex mites and Dermatophytosis. A deep skin scraping is advised.`,
         overrideHint: 'If skin scrape reveals Demodex mites, use the Clinical Override dropdown in Clinical Review to confirm Mange.',
       }
@@ -78,7 +78,7 @@ export function checkEarlyStageDifferential(aiResult, species, areaOfConcern = '
     if (isHealthyWithConcern) {
       return {
         type: 'subclinical_mange_alert',
-        title: '🔬 Subclinical / Early-Stage Lesion Advisory',
+        title: 'Subclinical / Early-Stage Lesion Advisory',
         message: 'Early-stage localized mange with subtle erythema and early hair thinning often lacks florid crusts, causing visual classification to align with intact skin. If clinical pruritus or focal redness is present, microscopic skin scraping is recommended.',
         overrideHint: 'Attending veterinarian may override the tentative triage classification in Clinical Review if clinical lesions are confirmed.',
       }
@@ -181,7 +181,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
       // Step 2b: Server-Side Inanimate / Non-Animal Gate Check
       if (result.rejected) {
         setQualityRejection({
-          title: '🚫 Image Rejected: Non-Animal Subject Detected',
+          title: 'Image Rejected: Non-Animal Subject Detected',
           reason: result.reason || 'NON_ANIMAL',
           detected: result.detected,
           message: result.message || 'VetLink is trained exclusively on domestic animal dermatological lesions (Canine, Feline, Avian, Rabbit). Non-animal subjects are rejected to prevent diagnostic errors and model overload.',
@@ -254,7 +254,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
         const result = await predict(imgElement, newSpecies)
         if (result.rejected) {
           setQualityRejection({
-            title: '🚫 Image Rejected: Non-Animal Subject Detected',
+            title: 'Image Rejected: Non-Animal Subject Detected',
             reason: result.reason || 'NON_ANIMAL',
             detected: result.detected,
             message: result.message,
@@ -440,7 +440,11 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
           boxShadow: '0 4px 14px rgba(22, 101, 52, 0.08)',
         }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-            <span style={{ fontSize: '2.4rem' }}>✅</span>
+            <div style={{ width: 40, height: 40, borderRadius: '50%', background: '#dcfce7', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#166534', flexShrink: 0 }}>
+              <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
+            </div>
             <div>
               <h3 style={{ margin: 0, color: '#166534', fontSize: '1.25rem' }}>
                 Patient Intake & AI Screening Admitted!
@@ -486,14 +490,14 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                   fontWeight: 600,
                   fontSize: '0.8rem',
                 }}>
-                  {savedSummary.status === 'Awaiting Lab Test' ? '🧪 Awaiting Lab Test' : '🟡 Needs Vet Review'}
+                  {savedSummary.status === 'Awaiting Lab Test' ? 'Awaiting Lab Test' : 'Needs Vet Review'}
                 </span>
               </div>
             </div>
           </div>
 
           <p style={{ fontSize: '0.85rem', color: '#334155', margin: '0 0 14px', lineHeight: 1.4 }}>
-            📋 <strong>Next Step:</strong> Hand off the patient to the Attending Veterinarian. The doctor will review the Grad-CAM heatmap, confirm symptoms, and finalize the prescription.
+            <strong>Next Step:</strong> Hand off the patient to the Attending Veterinarian. The doctor will review the Grad-CAM heatmap, confirm symptoms, and finalize the prescription.
           </p>
 
           <div style={{ display: 'flex', gap: 10 }}>
@@ -514,7 +518,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                 setSavedSummary(null)
               }}
             >
-              ➕ Intake Next Patient
+              Intake Next Patient
             </button>
             <button
               type="button"
@@ -522,7 +526,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
               style={{ padding: '9px 18px', fontSize: '0.88rem' }}
               onClick={onViewPending}
             >
-              📋 View Patient Records
+              View Patient Records
             </button>
           </div>
         </div>
@@ -565,7 +569,12 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                 textAlign: 'center',
               }}
             >
-              <div style={{ fontSize: '2.4rem' }}>📷</div>
+              <div style={{ color: '#64748b' }}>
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+              </div>
               <div style={{ fontSize: '0.92rem', fontWeight: 600, color: '#334155' }}>
                 Capture or Upload Patient Photo
               </div>
@@ -585,7 +594,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                 onClick={handleOpenCamera}
                 disabled={isAnalyzing || isSaving}
               >
-                <span>📸</span> Retake (Camera)
+                Retake (Camera)
               </button>
               <button
                 type="button"
@@ -594,7 +603,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                 onClick={handleOpenFilePicker}
                 disabled={isAnalyzing || isSaving}
               >
-                <span>📁</span> Upload File
+                Upload File
               </button>
             </div>
           )}
@@ -614,7 +623,6 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
               boxShadow: '0 2px 8px rgba(239, 68, 68, 0.12)',
             }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontWeight: 'bold', fontSize: '0.88rem', marginBottom: 4 }}>
-                <span>🚫</span>
                 <span>{qualityRejection.title}</span>
               </div>
               <p style={{ margin: '0 0 8px 0', color: '#7f1d1d', fontSize: '0.8rem' }}>
@@ -629,7 +637,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                 fontWeight: 600,
                 fontSize: '0.76rem',
               }}>
-                👉 {qualityRejection.instructions}
+                {qualityRejection.instructions}
               </div>
             </div>
           )}
@@ -646,7 +654,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
             lineHeight: 1.45,
             textAlign: 'left',
           }}>
-            🔍 <strong>Clinical Imaging Tip:</strong> Take a tight close-up photo where the lesion fills 70–80% of the frame. Wide shots showing the full dog face or body will cause the AI to focus on surrounding healthy fur instead of the lesion.
+            <strong>Clinical Imaging Tip:</strong> Take a tight close-up photo where the lesion fills 70–80% of the frame. Wide shots showing the full dog face or body will cause the AI to focus on surrounding healthy fur instead of the lesion.
           </div>
         </div>
 
@@ -771,7 +779,12 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                 boxShadow: '0 4px 14px rgba(239, 68, 68, 0.12)',
               }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
-                  <span style={{ fontSize: '2rem' }}>⛔</span>
+                  <div style={{ width: 36, height: 36, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#b91c1c', flexShrink: 0 }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                      <circle cx="12" cy="12" r="10" />
+                      <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                    </svg>
+                  </div>
                   <div>
                     <h4 style={{ margin: 0, color: '#991b1b', fontSize: '1.02rem', fontWeight: 700 }}>
                       {qualityRejection.title}
@@ -808,7 +821,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                   color: '#7f1d1d',
                   lineHeight: 1.45,
                 }}>
-                  💡 <strong>Action Required:</strong> {qualityRejection.instructions}
+                  <strong>Action Required:</strong> {qualityRejection.instructions}
                 </div>
 
                 <div style={{ display: 'flex', gap: 10 }}>
@@ -818,7 +831,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                     style={{ flex: 1, padding: '10px 12px', fontSize: '0.84rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6 }}
                     onClick={handleOpenCamera}
                   >
-                    <span>📸</span> Retake with Camera
+                    Retake with Camera
                   </button>
                   <button
                     type="button"
@@ -826,7 +839,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                     style={{ flex: 1, padding: '10px 12px', fontSize: '0.84rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: 'white' }}
                     onClick={handleOpenFilePicker}
                   >
-                    <span>📁</span> Select Another Image
+                    Select Another Image
                   </button>
                 </div>
               </div>
@@ -875,7 +888,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                 {/* Colab-exact Prediction Banner */}
                 <div style={{ borderTop: '1px dashed #334155', paddingTop: 10, marginTop: 4, fontFamily: 'monospace' }}>
                   <div style={{ fontSize: '0.88rem', color: '#4ade80', fontWeight: 'bold' }}>
-                    🏆 TOP PREDICTION: {aiResult.displayLabel.toUpperCase()}
+                    TOP PREDICTION: {aiResult.displayLabel.toUpperCase()}
                   </div>
                   <div style={{ fontSize: '0.82rem', color: '#cbd5e1', marginLeft: 20 }}>
                     Confidence: {aiResult.percent}
@@ -884,16 +897,16 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                   {/* FR7: 60% Decision Boundary (Thesis pp. 11, 41, 46, 56) */}
                   {aiResult.confidence >= 0.60 ? (
                     <div style={{ marginTop: 6, padding: '5px 8px', background: 'rgba(22, 101, 52, 0.35)', border: '1px solid #16a34a', borderRadius: 4, fontSize: '0.74rem', color: '#86efac' }}>
-                      ✓ Confidence &ge; 60%: First-line care protocol auto-populated into consultation draft.
+                      Confidence &ge; 60%: First-line care protocol auto-populated into consultation draft.
                     </div>
                   ) : (
                     <div style={{ marginTop: 6, padding: '6px 8px', background: 'rgba(180, 83, 9, 0.35)', border: '1px solid #d97706', borderRadius: 4, fontSize: '0.74rem', color: '#fde68a' }}>
-                      ⚠️ Confidence &lt; 60% decision boundary: Secondary confirmatory laboratory diagnostics (Skin Scraping, Fungal Culture, or Tape Cytology) recommended.
+                      Confidence &lt; 60% decision boundary: Secondary confirmatory laboratory diagnostics (Skin Scraping, Fungal Culture, or Tape Cytology) recommended.
                     </div>
                   )}
 
                   <div style={{ marginTop: 8, fontSize: '0.8rem', color: '#94a3b8' }}>
-                    📊 Top 3 Predictions:
+                    Top 3 Predictions:
                     {aiResult.top3.map((item, i) => (
                       <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '2px 0 2px 14px', color: i === 0 ? '#f1f5f9' : '#94a3b8' }}>
                         <span>{i + 1}. {item.display}</span>
@@ -908,7 +921,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                     if (!comorb.isComorbid) return null
                     return (
                       <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(59, 130, 246, 0.25)', border: '1px solid #3b82f6', borderRadius: 6, fontSize: '0.78rem', color: '#bfdbfe', lineHeight: 1.4 }}>
-                        🩺 <strong>Suspected Comorbidity / Secondary Condition:</strong> Elevated probability detected for both <strong>{comorb.primary} ({(comorb.primaryConf * 100).toFixed(1)}%)</strong> and <strong>{comorb.secondary} ({(comorb.secondaryConf * 100).toFixed(1)}%)</strong>. Clinical evaluation for secondary opportunistic infection (e.g. bacterial colonization over fungal/parasitic lesion) recommended.
+                        <strong>Suspected Comorbidity / Secondary Condition:</strong> Elevated probability detected for both <strong>{comorb.primary} ({(comorb.primaryConf * 100).toFixed(1)}%)</strong> and <strong>{comorb.secondary} ({(comorb.secondaryConf * 100).toFixed(1)}%)</strong>. Clinical evaluation for secondary opportunistic infection (e.g. bacterial colonization over fungal/parasitic lesion) recommended.
                       </div>
                     )
                   })()}
@@ -921,7 +934,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                       <div style={{ marginTop: 8, padding: '8px 10px', background: 'rgba(168, 85, 247, 0.2)', border: '1px solid #a855f7', borderRadius: 6, fontSize: '0.78rem', color: '#e9d5ff', lineHeight: 1.4 }}>
                         <strong>{diff.title}:</strong> {diff.message}
                         <div style={{ marginTop: 4, fontSize: '0.72rem', color: '#d8b4fe' }}>
-                          💡 <em>{diff.overrideHint}</em>
+                          <em>{diff.overrideHint}</em>
                         </div>
                       </div>
                     )
@@ -929,12 +942,11 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
 
                   {aiResult.engine === 'backend' ? (
                     <div style={{ marginTop: 8, fontSize: '0.75rem', color: '#4ade80', display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span>⚡</span>
                       <span><strong>Native TFLite Engine (0.04s)</strong> — Neural inference verified on FastAPI backend</span>
                     </div>
                   ) : (
                     <div style={{ marginTop: 8, fontSize: '0.75rem', color: '#fbbf24', background: 'rgba(217, 119, 6, 0.2)', border: '1px solid #d97706', padding: '6px 8px', borderRadius: 4 }}>
-                      ⚠️ <strong>Offline WASM Fallback Active:</strong> FastAPI backend (port 8000) was unreachable. For 99.9% clinical accuracy, ensure backend is running (<code>python -m uvicorn backend.main:app --port 8000</code>).
+                      <strong>Offline WASM Fallback Active:</strong> FastAPI backend (port 8000) was unreachable. For 99.9% clinical accuracy, ensure backend is running (<code>python -m uvicorn backend.main:app --port 8000</code>).
                     </div>
                   )}
                 </div>
@@ -945,9 +957,8 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
             {aiResult && !qualityRejection && !isAnalyzing && (
               <div style={{ marginTop: 14, padding: 14, background: '#f8fafc', border: '1px solid #e2e8f0', borderRadius: 10 }}>
                 <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
-                  <span style={{ fontWeight: 'bold', fontSize: '0.88rem', color: '#1e293b', display: 'flex', alignItems: 'center', gap: 6 }}>
-                    <span>🩺</span>
-                    <span>Observed Clinical Signs & Symptoms</span>
+                  <span style={{ fontWeight: 'bold', fontSize: '0.88rem', color: '#1e293b' }}>
+                    Observed Clinical Signs & Symptoms
                   </span>
                   <span style={{ fontSize: '0.74rem', color: '#64748b' }}>
                     {aiResult.confidence >= 0.60 ? 'Auto-suggested from AI findings' : 'Manual verification required (<60%)'}
@@ -1018,10 +1029,10 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                     />
                     <div>
                       <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: labTestRequired ? '#b45309' : '#1e293b' }}>
-                        🧪 Confirmatory Diagnostic Lab Test Required
+                        Confirmatory Diagnostic Lab Test Required
                       </span>
                       <p style={{ margin: '2px 0 0', fontSize: '0.76rem', color: '#475569', lineHeight: 1.35 }}>
-                        Check if attending staff or clinician needs microscope skin scraping, fungal DTM culture, or tape cytology. (Patient will be flagged as <code>🧪 Awaiting Lab Test</code>).
+                        Check if attending staff or clinician needs microscope skin scraping, fungal DTM culture, or tape cytology. (Patient will be flagged as <code>Awaiting Lab Test</code>).
                       </p>
                     </div>
                   </label>
@@ -1029,7 +1040,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
 
                 {currentUser?.role === 'Clinic Staff' && labTestRequired && (
                   <div style={{ marginTop: 6, padding: '6px 10px', background: '#fef3c7', borderRadius: 6, color: '#92400e', fontSize: '0.76rem', fontWeight: 600 }}>
-                    🔒 Mandated by AI Triage Protocol: Low confidence or secondary comorbidity detected. Awaiting Attending Veterinarian authorization.
+                    Mandated by AI Triage Protocol: Low confidence or secondary comorbidity detected. Awaiting Attending Veterinarian authorization.
                   </div>
                 )}
 
@@ -1059,7 +1070,6 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                     disabled={isSaving || isAnalyzing}
                     style={{ flex: 1.2, margin: 0 }}
                   >
-                    <span>📸</span>
                     TAKE LIVE PHOTO
                   </button>
                   <button
@@ -1081,7 +1091,6 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                       border: '1px solid #cbd5e1',
                     }}
                   >
-                    <span>📁</span>
                     UPLOAD FILE
                   </button>
                 </div>
@@ -1100,7 +1109,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                   fontWeight: 600,
                   marginTop: 4,
                 }}>
-                  ⚠️ Patient record cannot be submitted with a rejected image. Please retake photo above.
+                  Patient record cannot be submitted with a rejected image. Please retake photo above.
                 </div>
               )}
 
@@ -1114,10 +1123,10 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                   style={{ background: 'linear-gradient(135deg, #16a34a, #15803d)', marginTop: 8 }}
                 >
                   {isSaving
-                    ? '⏳ SAVING PATIENT & SCAN...'
+                    ? 'SAVING PATIENT & SCAN...'
                     : currentUser?.role === 'Clinic Staff'
-                      ? '✓ SAVE INTAKE & QUEUE FOR VET REVIEW'
-                      : '✓ SAVE PATIENT RECORD'}
+                      ? 'SAVE INTAKE & QUEUE FOR VET REVIEW'
+                      : 'SAVE PATIENT RECORD'}
                 </button>
               )}
             </div>
