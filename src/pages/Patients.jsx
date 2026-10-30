@@ -305,7 +305,9 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
             if (screenings && screenings.length > 0) {
               scr = screenings[screenings.length - 1]
             }
-          } catch (_) {}
+          } catch (err) {
+            console.warn('Could not load screening for visit:', err)
+          }
           loadedVisits.push({
             visitNum: i + 1,
             consultation: c,
@@ -484,8 +486,9 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
             <tr>
               <th style={{ width: '48px' }}>PATIENT</th>
               <th>PATIENT ID</th>
-              <th>NAME &amp; CONCERN</th>
+              <th>NAME</th>
               <th>SPECIES</th>
+              <th>AREA OF CONCERN</th>
               <th>LAST VISIT</th>
               <th>AI DIAGNOSIS</th>
               <th>STATUS</th>
@@ -494,9 +497,9 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
           </thead>
           <tbody>
             {isLoading ? (
-              <tr><td colSpan="8" style={{ textAlign: 'center', padding: '32px' }}>Loading patients from local database...</td></tr>
+              <tr><td colSpan="9" style={{ textAlign: 'center', padding: '32px' }}>Loading patients from local database...</td></tr>
             ) : visiblePatients.length === 0 ? (
-              <tr><td colSpan="8" style={{ textAlign: 'center', padding: '32px' }}>No patients found matching your search.</td></tr>
+              <tr><td colSpan="9" style={{ textAlign: 'center', padding: '32px' }}>No patients found matching your search.</td></tr>
             ) : visiblePatients.map((patient) => (
               <tr key={patient.id}>
                 <td>
@@ -533,13 +536,15 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                         {patient.weight ? `${patient.weight} kg` : ''} {patient.weight && patient.age ? '• ' : ''}{patient.age ? `Age: ${patient.age}` : ''}
                       </span>
                     )}
-                    {patient.areaOfConcern && (
-                      <span className="patient-concern-sub">{patient.areaOfConcern}</span>
-                    )}
                   </div>
                 </td>
                 <td>
                   <span className="species-pill-badge">{patient.species}</span>
+                </td>
+                <td>
+                  <span className="patient-concern-cell" title={patient.areaOfConcern || ''}>
+                    {patient.areaOfConcern || '—'}
+                  </span>
                 </td>
                 <td className="patient-date-cell">{patient.lastVisit}</td>
                 <td>

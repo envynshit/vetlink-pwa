@@ -576,7 +576,7 @@ input {
 .patients-table {
   width: 100%;
   border-collapse: collapse;
-  min-width: 720px;
+  min-width: 820px;
 }
 
 .patients-table thead th {
@@ -2089,7 +2089,7 @@ input {
 .patients-table {
   border-collapse: separate;
   border-spacing: 0;
-  min-width: 720px;
+  min-width: 820px;
 }
 
 .patients-table thead th {
@@ -3072,6 +3072,19 @@ input {
   display: flex;
   flex-direction: column;
   gap: 2px;
+}
+
+.patient-concern-cell {
+  font-size: 0.84rem;
+  color: #334155;
+  font-weight: 500;
+  display: inline-block;
+  max-width: 200px;
+  word-break: break-word;
+}
+
+:root[data-theme="dark"] .patient-concern-cell {
+  color: #a4beba;
 }
 
 .patient-concern-sub {
