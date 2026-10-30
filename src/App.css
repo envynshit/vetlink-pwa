@@ -1609,6 +1609,58 @@ input {
   box-shadow: 0 0 0 4px rgba(31, 143, 111, 0.12);
 }
 
+.password-input-wrapper {
+  position: relative;
+  display: flex;
+  align-items: center;
+  width: 100%;
+}
+
+.password-input-wrapper input {
+  padding-right: 46px !important;
+}
+
+.password-toggle-btn {
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0;
+  background: transparent;
+  border: none;
+  color: var(--muted);
+  cursor: pointer;
+  border-radius: 8px;
+  transition: color 0.15s ease, background-color 0.15s ease;
+  z-index: 2;
+}
+
+.password-toggle-btn:hover {
+  color: var(--text);
+  background: rgba(0, 0, 0, 0.05);
+}
+
+.password-toggle-btn:focus-visible {
+  outline: 2px solid var(--brand);
+  outline-offset: -2px;
+}
+
+:root[data-theme="dark"] .password-toggle-btn {
+  color: #8aa19b;
+}
+
+:root[data-theme="dark"] .password-toggle-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+  color: #edf6f3;
+}
+
 .login-note {
   margin: -8px 0 0;
   color: var(--muted);
