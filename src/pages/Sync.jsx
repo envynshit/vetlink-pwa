@@ -2,6 +2,10 @@ import { useState, useEffect, useCallback } from 'react'
 import {
   getPendingSyncQueue,
   getSyncConflicts,
+  getFailedSyncItems,
+  discardFailedSyncItem,
+  retryFailedSyncItem,
+  isSyncLocked,
   performCloudSync,
   resolveSyncConflict,
   saveRemoteSyncConflicts,
@@ -10,6 +14,7 @@ import {
 export default function Sync({ authToken, apiBaseUrl = 'http://localhost:8000', currentUser }) {
   const isAdmin = currentUser?.role === 'Clinic Admin'
   const [queue, setQueue] = useState([])
+  const [failedQueue, setFailedQueue] = useState([])
   const [conflicts, setConflicts] = useState([])
   const [activeTab, setActiveTab] = useState('queue')
   const [selectedConflictId, setSelectedConflictId] = useState(null)
@@ -22,8 +27,12 @@ export default function Sync({ authToken, apiBaseUrl = 'http://localhost:8000', 
 
   const refreshQueue = useCallback(async () => {
     try {
-      const items = await getPendingSyncQueue()
+      const [items, failed] = await Promise.all([
+        getPendingSyncQueue(),
+        getFailedSyncItems(),
+      ])
       setQueue(items || [])
+      setFailedQueue(failed || [])
     } catch (err) {
       console.error('Failed to read syncQueue from IndexedDB:', err)
     }
@@ -31,16 +40,24 @@ export default function Sync({ authToken, apiBaseUrl = 'http://localhost:8000', 
 
   const refreshConflicts = useCallback(async () => {
     try {
-      const response = await fetch(`${apiBaseUrl}/api/sync/conflicts`, {
-        headers: { Authorization: `Bearer ${authToken}` },
-      })
-      if (!response.ok) throw new Error(`Conflict refresh failed with HTTP ${response.status}`)
-      const result = await response.json()
-      await saveRemoteSyncConflicts(result.conflicts || [])
+      if (navigator.onLine && authToken) {
+        const response = await fetch(`${apiBaseUrl}/api/sync/conflicts`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+        if (response.ok) {
+          const result = await response.json()
+          await saveRemoteSyncConflicts(result.conflicts || [])
+        }
+      }
+    } catch {
+      // Offline fallback: load from IndexedDB
+    }
+
+    try {
       const items = await getSyncConflicts()
-      setConflicts(items)
+      setConflicts(items || [])
       setSelectedConflictId((currentId) =>
-        items.some((item) => item.id === currentId) ? currentId : items[0]?.id || null,
+        items && items.some((item) => item.id === currentId) ? currentId : items?.[0]?.id || null,
       )
     } catch (err) {
       console.error('Failed to read syncConflicts from IndexedDB:', err)
@@ -63,23 +80,48 @@ export default function Sync({ authToken, apiBaseUrl = 'http://localhost:8000', 
   }, [apiBaseUrl])
 
   useEffect(() => {
+    const handleSyncEvent = () => {
+      refreshQueue()
+      refreshConflicts()
+      checkServerHealth()
+    }
+    window.addEventListener('vetlink:synced', handleSyncEvent)
+    window.addEventListener('vetlink:queue-updated', handleSyncEvent)
+
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') {
+        refreshQueue()
+        refreshConflicts()
+        checkServerHealth()
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+
     const initialRefresh = window.setTimeout(() => {
       refreshQueue()
       refreshConflicts()
       checkServerHealth()
     }, 0)
+
+    // Fix 3: Skip polling when tab is hidden, poll every 8 seconds when active
     const interval = setInterval(() => {
+      if (document.visibilityState !== 'visible') return
       refreshQueue()
       refreshConflicts()
       checkServerHealth()
-    }, 5000)
+    }, 8000)
+
     return () => {
+      window.removeEventListener('vetlink:synced', handleSyncEvent)
+      window.removeEventListener('vetlink:queue-updated', handleSyncEvent)
+      document.removeEventListener('visibilitychange', handleVisibilityChange)
       window.clearTimeout(initialRefresh)
       clearInterval(interval)
     }
   }, [refreshQueue, refreshConflicts, checkServerHealth])
 
   const handleManualSync = async () => {
+    if (isSyncing || isSyncLocked()) return
     setIsSyncing(true)
     setFeedback(null)
     try {
@@ -90,10 +132,11 @@ export default function Sync({ authToken, apiBaseUrl = 'http://localhost:8000', 
       setLastSyncTime(new Date().toLocaleTimeString())
       setFeedback({
         type: result.success ? 'success' : 'error',
-        message: result.success
-          ? result.message
-          : `${result.message}${result.errors?.[0]?.error ? ` ${result.errors[0].error}` : ''}`,
+        message: result.message || (result.success ? 'Cloud synchronization completed.' : 'Sync completed with errors.'),
       })
+      if (result.success) {
+        window.dispatchEvent(new CustomEvent('vetlink:synced'))
+      }
     } catch (err) {
       console.error('Manual sync failed:', err)
       setFeedback({
@@ -155,20 +198,9 @@ export default function Sync({ authToken, apiBaseUrl = 'http://localhost:8000', 
             className="action-btn blue"
             type="button"
             onClick={handleManualSync}
-            disabled={isSyncing}
+            disabled={isSyncing || isSyncLocked()}
           >
-            {isSyncing ? '⏳ SYNCING...' : '▶ MANUAL SYNC'}
-          </button>
-          <button
-            className="small-outline"
-            type="button"
-            onClick={() => {
-              refreshQueue()
-              refreshConflicts()
-              checkServerHealth()
-            }}
-          >
-            ↻ REFRESH
+            {isSyncing || isSyncLocked() ? '⏳ SYNCING...' : '▶ MANUAL SYNC'}
           </button>
         </div>
 
@@ -203,6 +235,11 @@ export default function Sync({ authToken, apiBaseUrl = 'http://localhost:8000', 
           </div>
           <div style={{ marginTop: 6, fontSize: '0.85rem', color: 'var(--muted)' }}>
             Pending offline items in queue: <strong>{queue.length}</strong>
+            {failedQueue.length > 0 && (
+              <span style={{ marginLeft: 16, color: '#dc2626' }}>
+                Failed items: <strong>{failedQueue.length}</strong>
+              </span>
+            )}
             {lastSyncTime && <span style={{ marginLeft: 16 }}>Last synced: <strong>{lastSyncTime}</strong></span>}
             {serverInfo?.counts && (
               <span style={{ marginLeft: 16 }}>
@@ -304,6 +341,64 @@ export default function Sync({ authToken, apiBaseUrl = 'http://localhost:8000', 
             </tbody>
           </table>
         </div>
+
+        {failedQueue.length > 0 && (
+          <div style={{ marginTop: 24 }}>
+            <h4 style={{ marginBottom: 8, color: '#dc2626' }}>Failed Sync Items ({failedQueue.length})</h4>
+            <p style={{ fontSize: '0.85rem', color: 'var(--muted)', marginBottom: 10 }}>
+              These items failed to upload after multiple attempts. You may retry or discard them.
+            </p>
+            <div className="patients-table-wrap">
+              <table className="patients-table staff-table">
+                <thead>
+                  <tr>
+                    <th>ENTITY</th>
+                    <th>ID</th>
+                    <th>OPERATION</th>
+                    <th>ERROR</th>
+                    <th>ACTIONS</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {failedQueue.map((item) => (
+                    <tr key={item.id}>
+                      <td><strong>{item.entityType.toUpperCase()}</strong></td>
+                      <td>{item.entityId}</td>
+                      <td><span className="status-badge orange">{item.operation}</span></td>
+                      <td style={{ fontSize: '0.82rem', color: '#dc2626' }}>{item.lastError || 'Rejected by server'}</td>
+                      <td>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          <button
+                            type="button"
+                            className="small-outline"
+                            style={{ fontSize: '0.75rem', padding: '3px 8px' }}
+                            onClick={async () => {
+                              await retryFailedSyncItem(item.id)
+                              await refreshQueue()
+                            }}
+                          >
+                            Retry
+                          </button>
+                          <button
+                            type="button"
+                            className="small-outline"
+                            style={{ fontSize: '0.75rem', padding: '3px 8px', color: '#dc2626', borderColor: '#fca5a5' }}
+                            onClick={async () => {
+                              await discardFailedSyncItem(item.id)
+                              await refreshQueue()
+                            }}
+                          >
+                            Discard
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )}
           </section>
         ) : isAdmin ? (
           <section id="sync-conflicts-panel" className="sync-conflicts-panel" role="tabpanel" aria-labelledby="sync-conflicts-tab">

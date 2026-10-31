@@ -2800,6 +2800,23 @@ input {
   gap: 12px;
 }
 
+.nav-sync-meta {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 2px;
+}
+
+.nav-sync-time {
+  font-size: 0.65rem;
+  color: var(--muted, #64748b);
+  white-space: nowrap;
+}
+
+.sidebar-nav .nav-item.active .nav-sync-time {
+  color: rgba(255, 255, 255, 0.85);
+}
+
 .nav-sync-badge {
   font-size: 0.68rem;
   font-weight: 700;
@@ -2807,6 +2824,17 @@ input {
   border-radius: 999px;
   background: #dcfce7;
   color: #166534;
+  transition: all 0.2s ease;
+}
+
+.nav-sync-badge.syncing {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.nav-sync-badge.pending {
+  background: #fef3c7;
+  color: #92400e;
 }
 
 .sidebar-nav .nav-item.active .nav-sync-badge {

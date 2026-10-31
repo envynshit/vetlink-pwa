@@ -1,9 +1,10 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import {
   getStaffUsers,
   addStaffUser,
   updateStaffUser,
   deleteStaffUser,
+  mergeCloudStaff,
 } from '../db/database'
 
 export default function Staff({ authToken, apiBaseUrl = 'http://localhost:8000' }) {
@@ -31,41 +32,73 @@ export default function Staff({ authToken, apiBaseUrl = 'http://localhost:8000' 
     deviceStatus: 'Online',
   })
 
-  const refreshStaff = async () => {
+  const refreshStaff = useCallback(async () => {
     try {
+      if (navigator.onLine && authToken) {
+        try {
+          const response = await fetch(`${apiBaseUrl}/api/users`, {
+            headers: { Authorization: `Bearer ${authToken}` },
+          })
+          if (response.ok) {
+            const result = await response.json()
+            await mergeCloudStaff(result.users || [])
+          }
+        } catch {
+          // Fallback to local IndexedDB on network error
+        }
+      }
       const records = await getStaffUsers()
       setStaffList(records)
     } catch (err) {
       console.error('Failed to reload staff records:', err)
       setErrorMessage('Could not load staff members from the local database.')
     }
-  }
+  }, [apiBaseUrl, authToken])
 
   useEffect(() => {
     let isMounted = true
 
-    getStaffUsers()
-      .then((records) => {
+    const loadStaff = async () => {
+      try {
+        const localStaff = await getStaffUsers()
         if (isMounted) {
-          setStaffList(records)
+          setStaffList(localStaff)
         }
-      })
-      .catch((err) => {
+
+        if (!navigator.onLine || !authToken) return
+
+        const response = await fetch(`${apiBaseUrl}/api/users`, {
+          headers: { Authorization: `Bearer ${authToken}` },
+        })
+        if (!response.ok) return
+
+        const result = await response.json()
+        await mergeCloudStaff(result.users || [])
+        const mergedStaff = await getStaffUsers()
         if (isMounted) {
-          console.error('Failed to load staff records from IndexedDB:', err)
-          setErrorMessage('Could not load staff members from the local database.')
+          setStaffList(mergedStaff)
         }
-      })
-      .finally(() => {
+      } catch (err) {
+        console.warn('Could not retrieve cloud staff on mount:', err)
+      } finally {
         if (isMounted) {
           setIsLoading(false)
         }
-      })
+      }
+    }
+
+    loadStaff()
+
+    const handleSynced = () => {
+      refreshStaff()
+    }
+    window.addEventListener('vetlink:synced', handleSynced)
 
     return () => {
       isMounted = false
+      window.removeEventListener('vetlink:synced', handleSynced)
     }
-  }, [])
+  }, [apiBaseUrl, authToken, refreshStaff])
 
   useEffect(() => {
     if (!successMessage) return

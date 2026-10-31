@@ -10,6 +10,7 @@ import Sync from './pages/Sync'
 import NewPatient from './pages/NewPatient'
 import Settings from './pages/Settings'
 import Treatment from './pages/Treatment'
+import { getPendingSyncQueue, performCloudSync, isSyncLocked } from './db/database'
 
 const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'
 
@@ -38,6 +39,10 @@ function App() {
   const [isInstalled, setIsInstalled] = useState(false)
   const [showLogoutConfirm, setShowLogoutConfirm] = useState(false)
   const [showSettings, setShowSettings] = useState(false)
+  const [syncBadgeText, setSyncBadgeText] = useState('Offline Ready')
+  const [syncBadgeClass, setSyncBadgeClass] = useState('')
+  const [pendingSyncCount, setPendingSyncCount] = useState(0)
+  const [lastSyncTime, setLastSyncTime] = useState(() => (typeof localStorage !== 'undefined' ? localStorage.getItem('vetlink_last_sync_time') : null))
 
   useEffect(() => {
     const isStandalone =
@@ -110,6 +115,137 @@ function App() {
         setCurrentUser(null)
       })
       .finally(() => setIsCheckingSession(false))
+  }, [authToken])
+
+  // Automatic Cloud Sync & Offline Queue Monitoring
+  useEffect(() => {
+    let syncTimeoutId = null
+    let isSyncRunning = false
+
+    const refreshPendingCount = async () => {
+      try {
+        const queue = await getPendingSyncQueue()
+        const count = queue?.length || 0
+        setPendingSyncCount(count)
+        if (!navigator.onLine) {
+          setSyncBadgeText(count > 0 ? `${count} Pending` : 'Offline Mode')
+          setSyncBadgeClass(count > 0 ? 'pending' : '')
+        } else if (count > 0) {
+          setSyncBadgeText(`${count} Pending`)
+          setSyncBadgeClass('pending')
+        } else {
+          setSyncBadgeText('Offline Ready')
+          setSyncBadgeClass('')
+        }
+        return count
+      } catch {
+        return 0
+      }
+    }
+
+    const runAutoSync = async (isReconnect = false) => {
+      if (isSyncRunning || isSyncLocked() || !authToken || !navigator.onLine) {
+        await refreshPendingCount()
+        return
+      }
+
+      isSyncRunning = true
+      try {
+        const queue = await getPendingSyncQueue()
+        const count = queue?.length || 0
+        setPendingSyncCount(count)
+
+        if (count > 0) {
+          setSyncBadgeText('Syncing...')
+          setSyncBadgeClass('syncing')
+          const result = await performCloudSync(API_BASE_URL, authToken)
+          const updatedQueue = await getPendingSyncQueue()
+          const remaining = updatedQueue?.length || 0
+          setPendingSyncCount(remaining)
+
+          if (result.success) {
+            const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            setLastSyncTime(timeStr)
+            if (typeof localStorage !== 'undefined') localStorage.setItem('vetlink_last_sync_time', timeStr)
+            setSyncBadgeText('Synced ✓')
+            setSyncBadgeClass('')
+            window.dispatchEvent(new CustomEvent('vetlink:synced'))
+            setTimeout(() => {
+              setSyncBadgeText('Offline Ready')
+            }, 3000)
+          } else {
+            setSyncBadgeText(remaining > 0 ? `${remaining} Pending` : 'Offline Ready')
+            setSyncBadgeClass(remaining > 0 ? 'pending' : '')
+          }
+        } else if (isReconnect) {
+          // Fix 2: Only pull incremental delta when reconnecting, never on routine empty queue checks
+          try {
+            const result = await performCloudSync(API_BASE_URL, authToken)
+            if (result && result.success) {
+              const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+              setLastSyncTime(timeStr)
+              if (typeof localStorage !== 'undefined') localStorage.setItem('vetlink_last_sync_time', timeStr)
+              window.dispatchEvent(new CustomEvent('vetlink:synced'))
+            }
+          } catch {
+            // Silently ignore pull error when backend is offline
+          }
+          setSyncBadgeText('Offline Ready')
+          setSyncBadgeClass('')
+        }
+      } catch (err) {
+        console.warn('Auto-sync failed:', err)
+        await refreshPendingCount()
+      } finally {
+        isSyncRunning = false
+      }
+    }
+
+    const scheduleSync = (delay = 1200, isReconnect = false) => {
+      clearTimeout(syncTimeoutId)
+      syncTimeoutId = setTimeout(() => runAutoSync(isReconnect), delay)
+    }
+
+    const handleOnline = () => {
+      scheduleSync(1200, true)
+    }
+
+    const handleOffline = () => {
+      refreshPendingCount()
+    }
+
+    const handleQueueUpdated = () => {
+      refreshPendingCount()
+      if (navigator.onLine && authToken) {
+        scheduleSync(1000, false)
+      }
+    }
+
+    const handleSyncedEvent = () => {
+      const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+      setLastSyncTime(timeStr)
+      if (typeof localStorage !== 'undefined') localStorage.setItem('vetlink_last_sync_time', timeStr)
+      refreshPendingCount()
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+    window.addEventListener('vetlink:queue-updated', handleQueueUpdated)
+    window.addEventListener('vetlink:synced', handleSyncedEvent)
+
+    if (authToken && navigator.onLine) {
+      scheduleSync(800, true)
+    } else {
+      refreshPendingCount()
+    }
+
+    return () => {
+      clearTimeout(syncTimeoutId)
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+      window.removeEventListener('vetlink:queue-updated', handleQueueUpdated)
+      window.removeEventListener('vetlink:synced', handleSyncedEvent)
+    }
   }, [authToken])
 
   const handleImageChange = (event) => {
@@ -407,7 +543,16 @@ function App() {
                   </svg>
                   <span>Sync</span>
                 </div>
-                <span className="nav-sync-badge">Offline Ready</span>
+                <div className="nav-sync-meta">
+                  <span className={`nav-sync-badge ${syncBadgeClass}`}>
+                    {syncBadgeText}
+                  </span>
+                  {lastSyncTime && (
+                    <span className="nav-sync-time" title={`Last synchronized: ${lastSyncTime}`}>
+                      Last synced: {lastSyncTime}
+                    </span>
+                  )}
+                </div>
               </button>
             </nav>
 
@@ -456,13 +601,17 @@ function App() {
                   type="button"
                   className="header-icon-btn notification-btn"
                   title="Notifications & Alerts"
-                  onClick={() => alert('All clinical records synchronized locally. No pending alerts.')}
+                  onClick={() => alert(pendingSyncCount > 0 ? `${pendingSyncCount} clinical record(s) queued locally for cloud sync.` : 'All clinical records synchronized locally. No pending alerts.')}
                 >
                   <svg width="19" height="19" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" />
                     <path d="M13.73 21a2 2 0 0 1-3.46 0" />
                   </svg>
-                  <span className="notification-dot" />
+                  {pendingSyncCount > 0 ? (
+                    <span className="notification-dot" style={{ background: '#f59e0b' }} />
+                  ) : (
+                    <span className="notification-dot" />
+                  )}
                 </button>
                 <button
                   type="button"
@@ -610,7 +759,7 @@ function App() {
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
                 <path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" />
               </svg>
-              <span>Sync</span>
+              <span>Sync{pendingSyncCount > 0 ? ` (${pendingSyncCount})` : ''}</span>
             </button>
           </nav>
 
