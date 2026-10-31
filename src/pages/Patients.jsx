@@ -108,8 +108,14 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
 
     loadPatients()
 
+    const handleSynced = () => {
+      refreshPatients()
+    }
+    window.addEventListener('vetlink:synced', handleSynced)
+
     return () => {
       isMounted = false
+      window.removeEventListener('vetlink:synced', handleSynced)
     }
   }, [apiBaseUrl, authToken, isOffline])
 

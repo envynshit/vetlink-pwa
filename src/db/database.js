@@ -125,6 +125,18 @@ function createSyncQueueItem(entityType, entityId, operation, payload, createdAt
   return { id, entityType, entityId, operation, payload, baseVersion, status: 'pending', createdAt }
 }
 
+function notifyQueueUpdated() {
+  if (typeof window !== 'undefined' && window.dispatchEvent) {
+    window.dispatchEvent(new CustomEvent('vetlink:queue-updated'))
+  }
+}
+
+// ─── Fix 4: Global sync lock shared across App.jsx and Sync.jsx ───────────────
+let _syncLockActive = false
+export function isSyncLocked() { return _syncLockActive }
+export function acquireSyncLock() { _syncLockActive = true }
+export function releaseSyncLock() { _syncLockActive = false }
+
 function createGlobalRecordId(prefix) {
   const uniqueId = typeof crypto !== 'undefined' && crypto.randomUUID
     ? crypto.randomUUID()
@@ -208,6 +220,7 @@ export async function addPatient(patient) {
   await tx.objectStore('patients').put(record)
   await tx.objectStore('syncQueue').put(createSyncQueueItem('patients', record.id, 'CREATE', record, now, 0))
   await tx.done
+  notifyQueueUpdated()
   return record
 }
 
@@ -268,6 +281,39 @@ export async function mergeCloudPatients(cloudPatients) {
   await tx.done
 }
 
+export async function mergeCloudStaff(cloudUsers) {
+  const db = await initDatabase()
+  const tx = db.transaction(['users', 'syncQueue', 'syncConflicts'], 'readwrite')
+  const userStore = tx.objectStore('users')
+  const queueItems = await tx.objectStore('syncQueue').getAll()
+  const conflicts = await tx.objectStore('syncConflicts').getAll()
+  const pendingKeys = new Set(queueItems.map((item) => `${item.entityType}:${item.entityId}`))
+  const conflictKeys = new Set(
+    conflicts
+      .filter((item) => !item.resolutionStatus || item.resolutionStatus === 'unresolved')
+      .map((item) => `${item.entityType}:${item.entityId}`),
+  )
+
+  for (const user of cloudUsers) {
+    const id = user.id
+    if (!id || pendingKeys.has(`users:${id}`) || conflictKeys.has(`users:${id}`)) continue
+
+    await userStore.put({
+      ...user,
+      id,
+      username: user.username || `${user.name?.toLowerCase().replace(/\s+/g, '.')}@clinic.vet`,
+      name: user.name || 'Unnamed Staff',
+      role: user.role || 'Technician',
+      deviceStatus: user.device_status ?? user.deviceStatus ?? 'Online',
+      version: user.version || 1,
+      createdAt: user.created_at ?? user.createdAt ?? new Date().toISOString(),
+      updatedAt: user.updated_at ?? user.updatedAt ?? new Date().toISOString(),
+      syncStatus: 'synced',
+    })
+  }
+  await tx.done
+}
+
 export async function updatePatient(id, updates) {
   const db = await initDatabase()
   const now = new Date().toISOString()
@@ -297,6 +343,7 @@ export async function updatePatient(id, updates) {
   for (const item of matchingQueueItems) await queueStore.delete(item.id)
   await queueStore.put(createSyncQueueItem('patients', id, operation, updatedRecord, now, baseVersion))
   await tx.done
+  notifyQueueUpdated()
   return updatedRecord
 }
 
@@ -347,7 +394,7 @@ export async function getStaffUsers() {
     await tx.done
     return DEFAULT_STAFF
   }
-  return existing
+  return existing.filter((member) => !member._deletedLocally)
 }
 
 export async function addStaffUser(staff, { syncStatus = 'pending' } = {}) {
@@ -374,6 +421,9 @@ export async function addStaffUser(staff, { syncStatus = 'pending' } = {}) {
     await tx.objectStore('syncQueue').put(createSyncQueueItem('users', id, 'CREATE', record, now, 0))
   }
   await tx.done
+  if (syncStatus !== 'synced') {
+    notifyQueueUpdated()
+  }
   return record
 }
 
@@ -410,6 +460,7 @@ export async function updateStaffUser(id, updates) {
   for (const item of matchingQueueItems) await queueStore.delete(item.id)
   await queueStore.put(createSyncQueueItem('users', id, operation, updatedRecord, now, baseVersion))
   await tx.done
+  notifyQueueUpdated()
   return updatedRecord
 }
 
@@ -425,20 +476,56 @@ export async function deleteStaffUser(id) {
     const matchingQueueItems = queuedItems.filter((item) => item.entityType === 'users')
     const originalQueueItem = matchingQueueItems[0]
     const baseVersion = originalQueueItem?.baseVersion ?? existing.version ?? 0
-    const operation = matchingQueueItems.some((item) => item.operation === 'CREATE') ? 'CREATE' : 'DELETE'
-    await tx.objectStore('users').delete(id)
-    for (const item of matchingQueueItems) await queueStore.delete(item.id)
-    if (operation !== 'CREATE') {
+    const isOnlyLocal = matchingQueueItems.some((item) => item.operation === 'CREATE')
+
+    if (isOnlyLocal) {
+      // Record was never synced to the cloud — delete it outright
+      await tx.objectStore('users').delete(id)
+      for (const item of matchingQueueItems) await queueStore.delete(item.id)
+    } else {
+      // Fix 9: Soft-delete — keep the record locally until the DELETE is confirmed synced
+      const softDeleted = { ...existing, _deletedLocally: true, syncStatus: 'pending', updatedAt: now }
+      await tx.objectStore('users').put(softDeleted)
+      for (const item of matchingQueueItems) await queueStore.delete(item.id)
       await queueStore.put(createSyncQueueItem('users', id, 'DELETE', { id }, now, baseVersion))
     }
   }
   await tx.done
+  notifyQueueUpdated()
   return id
 }
 
 export async function getPendingSyncQueue() {
   const db = await initDatabase()
-  return db.getAll('syncQueue')
+  const all = await db.getAll('syncQueue')
+  // Fix 7: Exclude conflict and failed items from the "pending" count and push attempts
+  return all.filter((item) => item.status !== 'conflict' && item.status !== 'failed')
+}
+
+export async function getFailedSyncItems() {
+  const db = await initDatabase()
+  const all = await db.getAll('syncQueue')
+  return all.filter((item) => item.status === 'failed')
+}
+
+export async function discardFailedSyncItem(id) {
+  const db = await initDatabase()
+  await db.delete('syncQueue', id)
+  notifyQueueUpdated()
+}
+
+export async function retryFailedSyncItem(id) {
+  const db = await initDatabase()
+  const tx = db.transaction('syncQueue', 'readwrite')
+  const item = await tx.store.get(id)
+  if (item) {
+    item.status = 'pending'
+    item.retryCount = 0
+    delete item.lastError
+    await tx.store.put(item)
+  }
+  await tx.done
+  notifyQueueUpdated()
 }
 
 export async function getSyncConflicts() {
@@ -550,177 +637,225 @@ export async function resolveSyncConflict(conflictId, resolution, authoritativeR
     resolvedAt: now,
   })
   await tx.done
+  notifyQueueUpdated()
 
   return conflict
 }
 
 export async function performCloudSync(apiBaseUrl = 'http://localhost:8000', authToken = '') {
-  const db = await initDatabase()
-  const queue = await db.getAll('syncQueue')
-  let pushResult = { success: true, synced_ids: [], synced_count: 0, errors: [] }
-
-  if (queue.length > 0) {
-    const preparedQueue = await Promise.all(queue.map(async (item) => {
-      if (item.operation && item.payload) return item
-
-      const storeName = SYNC_STORE_NAMES.includes(item.entityType) ? item.entityType : null
-      const record = storeName ? await db.get(storeName, item.entityId) : null
-      return {
-        ...item,
-        operation: item.operation || (record ? 'UPDATE' : 'DELETE'),
-        payload: item.payload || record || { id: item.entityId },
-      }
-    }))
-
-    const response = await fetch(`${apiBaseUrl}/api/sync`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${authToken}`,
-      },
-      body: JSON.stringify({ queue: preparedQueue }),
-    })
-
-    if (!response.ok) {
-      throw new Error(`Cloud server responded with status HTTP ${response.status}`)
+  if (isSyncLocked()) {
+    return {
+      success: false,
+      inProgress: true,
+      message: 'A cloud synchronization is already in progress.',
     }
+  }
 
-    pushResult = await response.json()
-    const syncedIds = new Set(pushResult.synced_ids || [])
-    const backendConflicts = pushResult.conflicts || []
+  acquireSyncLock()
+  try {
+    const db = await initDatabase()
+    const allQueue = await db.getAll('syncQueue')
+    const queue = allQueue.filter((item) => item.status !== 'conflict' && item.status !== 'failed')
+    let pushResult = { success: true, synced_ids: [], synced_count: 0, errors: [] }
 
-    if (syncedIds.size > 0 || backendConflicts.length > 0) {
-      const tx = db.transaction(['syncQueue', 'syncConflicts', ...SYNC_STORE_NAMES], 'readwrite')
-      const queueStore = tx.objectStore('syncQueue')
-      const conflictStore = tx.objectStore('syncConflicts')
-      const conflictedKeys = new Set()
+    if (queue.length > 0) {
+      const preparedQueue = await Promise.all(queue.map(async (item) => {
+        if (item.operation && item.payload) return item
 
-      for (const item of queue) {
-        if (syncedIds.has(item.id)) {
+        const storeName = SYNC_STORE_NAMES.includes(item.entityType) ? item.entityType : null
+        const record = storeName ? await db.get(storeName, item.entityId) : null
+        return {
+          ...item,
+          operation: item.operation || (record ? 'UPDATE' : 'DELETE'),
+          payload: item.payload || record || { id: item.entityId },
+        }
+      }))
+
+      const response = await fetch(`${apiBaseUrl}/api/sync`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${authToken}`,
+        },
+        body: JSON.stringify({ queue: preparedQueue }),
+      })
+
+      if (!response.ok) {
+        throw new Error(`Cloud server responded with status HTTP ${response.status}`)
+      }
+
+      pushResult = await response.json()
+      const syncedIds = new Set(pushResult.synced_ids || [])
+      const backendConflicts = pushResult.conflicts || []
+      const itemErrors = new Map((pushResult.errors || []).map((err) => [err.id, err.error]))
+
+      if (syncedIds.size > 0 || backendConflicts.length > 0 || itemErrors.size > 0) {
+        const tx = db.transaction(['syncQueue', 'syncConflicts', ...SYNC_STORE_NAMES], 'readwrite')
+        const queueStore = tx.objectStore('syncQueue')
+        const conflictStore = tx.objectStore('syncConflicts')
+        const conflictedKeys = new Set()
+
+        for (const item of queue) {
+          if (syncedIds.has(item.id)) {
+            await queueStore.delete(item.id)
+
+            const store = SYNC_STORE_NAMES.includes(item.entityType) ? tx.objectStore(item.entityType) : null
+            if (store) {
+              if (item.operation === 'DELETE') {
+                await store.delete(item.entityId)
+              } else {
+                const record = await store.get(item.entityId)
+                const remaining = await queueStore.index('entityId').getAll(item.entityId)
+                if (record && !remaining.some((queuedItem) => queuedItem.entityType === item.entityType)) {
+                  record.syncStatus = 'synced'
+                  await store.put(record)
+                }
+              }
+            }
+            continue
+          }
+
+          if (itemErrors.has(item.id)) {
+            const currentItem = await queueStore.get(item.id)
+            if (currentItem) {
+              const retries = (currentItem.retryCount || 0) + 1
+              currentItem.retryCount = retries
+              currentItem.lastError = itemErrors.get(item.id)
+              if (retries >= 3) {
+                currentItem.status = 'failed'
+              }
+              await queueStore.put(currentItem)
+            }
+            continue
+          }
+
+          const conflict = backendConflicts.find((candidate) => candidate.queue_id === item.id || candidate.id === item.id)
+          if (!conflict) continue
           await queueStore.delete(item.id)
+          await conflictStore.put({
+            ...conflict,
+            id: conflict.id || item.id,
+            entityType: conflict.entityType || item.entityType,
+            entityId: conflict.entityId || item.entityId,
+            localData: conflict.localData || item.payload,
+            operation: conflict.operation || item.operation,
+            resolutionStatus: 'unresolved',
+            createdAt: conflict.createdAt || new Date().toISOString(),
+          })
+          conflictedKeys.add(`${item.entityType}:${item.entityId}`)
 
           const store = SYNC_STORE_NAMES.includes(item.entityType) ? tx.objectStore(item.entityType) : null
           if (store) {
-            const record = await store.get(item.entityId)
-            const remaining = await queueStore.index('entityId').getAll(item.entityId)
-            if (record && !remaining.some((queuedItem) => queuedItem.entityType === item.entityType)) {
-              record.syncStatus = 'synced'
-              await store.put(record)
+            const localRecord = await store.get(item.entityId)
+            if (localRecord) {
+              localRecord.syncStatus = 'conflict'
+              await store.put(localRecord)
             }
           }
-          continue
         }
+        await tx.done
+        pushResult.conflictedKeys = [...conflictedKeys]
+      }
+    }
 
-        const conflict = backendConflicts.find((candidate) => candidate.queue_id === item.id || candidate.id === item.id)
-        if (!conflict) continue
-        await queueStore.delete(item.id)
-        await conflictStore.put({
-          ...conflict,
-          id: conflict.id || item.id,
-          entityType: conflict.entityType || item.entityType,
-          entityId: conflict.entityId || item.entityId,
-          localData: conflict.localData || item.payload,
-          operation: conflict.operation || item.operation,
-          resolutionStatus: 'unresolved',
-          createdAt: conflict.createdAt || new Date().toISOString(),
-        })
-        conflictedKeys.add(`${item.entityType}:${item.entityId}`)
+    const lastSyncTimestamp = typeof localStorage !== 'undefined' ? localStorage.getItem('vetlink_last_sync_timestamp') : null
+    const pullUrl = lastSyncTimestamp
+      ? `${apiBaseUrl}/api/sync/pull?since=${encodeURIComponent(lastSyncTimestamp)}`
+      : `${apiBaseUrl}/api/sync/pull`
 
-        const store = SYNC_STORE_NAMES.includes(item.entityType) ? tx.objectStore(item.entityType) : null
-        if (store) {
-          const localRecord = await store.get(item.entityId)
-          if (localRecord) {
-            localRecord.syncStatus = 'conflict'
-            await store.put(localRecord)
-          }
+    const pullResponse = await fetch(pullUrl, {
+      headers: { Authorization: `Bearer ${authToken}` },
+    })
+    if (!pullResponse.ok) {
+      throw new Error(`Cloud pull failed with status HTTP ${pullResponse.status}`)
+    }
+    const cloudSnapshot = await pullResponse.json()
+    if (cloudSnapshot.server_time && typeof localStorage !== 'undefined') {
+      localStorage.setItem('vetlink_last_sync_timestamp', cloudSnapshot.server_time)
+    }
+
+    await saveRemoteSyncConflicts(cloudSnapshot.conflicts || [])
+    const currentQueue = await db.getAll('syncQueue')
+    const queuedEntities = new Set(currentQueue.map((item) => `${item.entityType}:${item.entityId}`))
+    const storedConflicts = await getSyncConflicts()
+    const conflictedEntities = new Set([
+      ...(pushResult.conflictedKeys || []),
+      ...storedConflicts.map((item) => `${item.entityType}:${item.entityId}`),
+    ])
+
+    const reconcileStore = async (storeName, cloudRecords, deletedRecords) => {
+      const localRecords = await db.getAll(storeName)
+      const cloudById = new Map(cloudRecords.map((record) => {
+        const mapped = normalizeCloudRecord(storeName, record)
+        return [mapped.id, mapped]
+      }))
+      const tx = db.transaction(storeName, 'readwrite')
+      const store = tx.objectStore(storeName)
+
+      for (const [id, cloudRecord] of cloudById) {
+        if (queuedEntities.has(`${storeName}:${id}`) || conflictedEntities.has(`${storeName}:${id}`)) continue
+        await store.put({ ...cloudRecord, syncStatus: 'synced' })
+      }
+
+      for (const localRecord of localRecords) {
+        const cloudDeleted = deletedRecords.some((item) =>
+          item.entity_type === storeName && item.entity_id === localRecord.id,
+        )
+        if (cloudDeleted && !cloudById.has(localRecord.id) &&
+          !queuedEntities.has(`${storeName}:${localRecord.id}`) &&
+          !conflictedEntities.has(`${storeName}:${localRecord.id}`)) {
+          await store.delete(localRecord.id)
         }
       }
       await tx.done
-      pushResult.conflictedKeys = [...conflictedKeys]
-    }
-  }
-
-  const pullResponse = await fetch(`${apiBaseUrl}/api/sync/pull`, {
-    headers: { Authorization: `Bearer ${authToken}` },
-  })
-  if (!pullResponse.ok) {
-    throw new Error(`Cloud pull failed with status HTTP ${pullResponse.status}`)
-  }
-  const cloudSnapshot = await pullResponse.json()
-  await saveRemoteSyncConflicts(cloudSnapshot.conflicts || [])
-  const currentQueue = await db.getAll('syncQueue')
-  const queuedEntities = new Set(currentQueue.map((item) => `${item.entityType}:${item.entityId}`))
-  const storedConflicts = await getSyncConflicts()
-  const conflictedEntities = new Set([
-    ...(pushResult.conflictedKeys || []),
-    ...storedConflicts.map((item) => `${item.entityType}:${item.entityId}`),
-  ])
-
-  const reconcileStore = async (storeName, cloudRecords, deletedRecords) => {
-    const localRecords = await db.getAll(storeName)
-    const cloudById = new Map(cloudRecords.map((record) => {
-      const mapped = normalizeCloudRecord(storeName, record)
-      return [mapped.id, mapped]
-    }))
-    const tx = db.transaction(storeName, 'readwrite')
-    const store = tx.objectStore(storeName)
-
-    for (const [id, cloudRecord] of cloudById) {
-      if (queuedEntities.has(`${storeName}:${id}`) || conflictedEntities.has(`${storeName}:${id}`)) continue
-      await store.put({ ...cloudRecord, syncStatus: 'synced' })
     }
 
-    for (const localRecord of localRecords) {
-      const cloudDeleted = deletedRecords.some((item) =>
-        item.entity_type === storeName && item.entity_id === localRecord.id,
-      )
-      if (cloudDeleted && !cloudById.has(localRecord.id) &&
-        !queuedEntities.has(`${storeName}:${localRecord.id}`) &&
-        !conflictedEntities.has(`${storeName}:${localRecord.id}`)) {
-        await store.delete(localRecord.id)
+    await reconcileStore('users', cloudSnapshot.users || [], cloudSnapshot.deleted || [])
+    await reconcileStore('patients', cloudSnapshot.patients || [], cloudSnapshot.deleted || [])
+    await reconcileStore('consultations', cloudSnapshot.consultations || [], cloudSnapshot.deleted || [])
+    await reconcileStore('screeningResults', cloudSnapshot.screeningResults || [], cloudSnapshot.deleted || [])
+
+    const remainingPendingQueue = (await db.getAll('syncQueue')).filter(
+      (item) => item.status !== 'conflict' && item.status !== 'failed'
+    )
+    const failedItems = pushResult.errors || []
+    const pendingKeys = new Set(remainingPendingQueue.map((item) => `${item.entityType}:${item.entityId}`))
+    const localIds = new Set()
+    for (const storeName of SYNC_STORE_NAMES) {
+      const localRecords = await db.getAll(storeName)
+      for (const record of localRecords) {
+        if (!pendingKeys.has(`${storeName}:${record.id}`) &&
+          !conflictedEntities.has(`${storeName}:${record.id}`)) {
+          localIds.add(`${storeName}:${record.id}`)
+        }
       }
     }
-    await tx.done
-  }
+    const cloudIds = new Set([
+      ...(cloudSnapshot.users || []).map((record) => `users:${record.id}`),
+      ...(cloudSnapshot.patients || []).map((record) => `patients:${record.id}`),
+      ...(cloudSnapshot.consultations || []).map((record) => `consultations:${record.id}`),
+      ...(cloudSnapshot.screeningResults || []).map((record) => `screeningResults:${record.id}`),
+    ].filter((key) => !pendingKeys.has(key) && !conflictedEntities.has(key)))
 
-  await reconcileStore('users', cloudSnapshot.users || [], cloudSnapshot.deleted || [])
-  await reconcileStore('patients', cloudSnapshot.patients || [], cloudSnapshot.deleted || [])
-  await reconcileStore('consultations', cloudSnapshot.consultations || [], cloudSnapshot.deleted || [])
-  await reconcileStore('screeningResults', cloudSnapshot.screeningResults || [], cloudSnapshot.deleted || [])
+    const isIncrementalPull = Boolean(lastSyncTimestamp)
+    const hasUnqueuedMismatch = !isIncrementalPull && (localIds.size !== cloudIds.size || [...localIds].some((id) => !cloudIds.has(id)))
+    const conflictCount = storedConflicts.length
 
-  const remainingQueue = await db.getAll('syncQueue')
-  const failedItems = pushResult.errors || []
-  const pendingKeys = new Set(remainingQueue.map((item) => `${item.entityType}:${item.entityId}`))
-  const localIds = new Set()
-  for (const storeName of SYNC_STORE_NAMES) {
-    const localRecords = await db.getAll(storeName)
-    for (const record of localRecords) {
-      if (!pendingKeys.has(`${storeName}:${record.id}`) &&
-        !conflictedEntities.has(`${storeName}:${record.id}`)) {
-        localIds.add(`${storeName}:${record.id}`)
-      }
+    return {
+      success: pushResult.success !== false && remainingPendingQueue.length === 0 && !hasUnqueuedMismatch && conflictCount === 0,
+      syncedCount: pushResult.synced_count || pushResult.synced_ids?.length || 0,
+      pendingCount: remainingPendingQueue.length,
+      errors: failedItems,
+      message: conflictCount > 0
+        ? `${conflictCount} sync conflict(s) need review.`
+        : hasUnqueuedMismatch
+        ? 'Sync could not confirm parity: unqueued local and cloud records differ.'
+        : remainingPendingQueue.length === 0
+          ? 'Local and cloud records are synchronized.'
+          : `Cloud sync completed with ${remainingPendingQueue.length} local change(s) still pending.`,
     }
-  }
-  const cloudIds = new Set([
-    ...(cloudSnapshot.users || []).map((record) => `users:${record.id}`),
-    ...(cloudSnapshot.patients || []).map((record) => `patients:${record.id}`),
-    ...(cloudSnapshot.consultations || []).map((record) => `consultations:${record.id}`),
-    ...(cloudSnapshot.screeningResults || []).map((record) => `screeningResults:${record.id}`),
-  ].filter((key) => !pendingKeys.has(key) && !conflictedEntities.has(key)))
-  const hasUnqueuedMismatch = localIds.size !== cloudIds.size || [...localIds].some((id) => !cloudIds.has(id))
-  const conflictCount = storedConflicts.length
-  return {
-    success: pushResult.success !== false && remainingQueue.length === 0 && !hasUnqueuedMismatch && conflictCount === 0,
-    syncedCount: pushResult.synced_count || pushResult.synced_ids?.length || 0,
-    pendingCount: remainingQueue.length,
-    errors: failedItems,
-    message: conflictCount > 0
-      ? `${conflictCount} sync conflict(s) need review.`
-      : hasUnqueuedMismatch
-      ? 'Sync could not confirm parity: unqueued local and cloud records differ.'
-      : remainingQueue.length === 0
-        ? 'Local and cloud records are synchronized.'
-        : `Cloud sync completed with ${remainingQueue.length} local change(s) still pending.`,
+  } finally {
+    releaseSyncLock()
   }
 }
 
@@ -750,6 +885,7 @@ export async function addConsultation(consultation) {
     createSyncQueueItem('consultations', record.id, 'CREATE', record, now, 0)
   )
   await tx.done
+  notifyQueueUpdated()
   return record
 }
 
@@ -785,6 +921,7 @@ export async function updateConsultation(id, updates) {
   for (const item of matchingQueueItems) await queueStore.delete(item.id)
   await queueStore.put(createSyncQueueItem('consultations', updatedRecord.id, operation, updatedRecord, now, baseVersion))
   await tx.done
+  notifyQueueUpdated()
   return updatedRecord
 }
 
@@ -816,6 +953,7 @@ export async function addScreeningResult(result) {
     createSyncQueueItem('screeningResults', record.id, 'CREATE', record, now, 0)
   )
   await tx.done
+  notifyQueueUpdated()
   return record
 }
 
@@ -856,6 +994,7 @@ export async function updateScreeningResultStatus(id, reviewStatus) {
   for (const item of matchingQueueItems) await queueStore.delete(item.id)
   await queueStore.put(createSyncQueueItem('screeningResults', id, operation, updated, now, baseVersion))
   await tx.done
+  notifyQueueUpdated()
   return updated
 }
 
