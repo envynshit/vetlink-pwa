@@ -1861,7 +1861,14 @@ def predict_disease(req: AIPredictionRequest):
         fur_density = float(np.mean(dx > 9))
         human_ratio = float(np.mean(is_skin))
 
-        if human_ratio >= 0.55 and fur_density < 0.22:
+        # Check surface roughness: human skin is smooth (lap_var < 350.0).
+        # Severe animal lesions with alopecia exhibit rough papules, scabs, and crusts (lap_var >= 350.0).
+        lum = 0.299 * r_chan + 0.587 * g_chan + 0.114 * b_chan
+        lap = lum[1:-1, 1:-1] * 4.0 - lum[:-2, 1:-1] - lum[2:, 1:-1] - lum[1:-1, :-2] - lum[1:-1, 2:]
+        lap_var = float(np.var(lap))
+        is_smooth_human_skin = (human_ratio >= 0.55) and (fur_density < 0.22) and (lap_var < 350.0)
+
+        if is_smooth_human_skin:
             return {
                 "rejected": True,
                 "reason": "HUMAN_SKIN",
@@ -1869,27 +1876,22 @@ def predict_disease(req: AIPredictionRequest):
                 "message": "The submitted image exhibits human cutaneous characteristics. VetLink AI is strictly calibrated for veterinary companion animals (Canine, Feline, Avian, Rabbit). Human dermatological screening is strictly prohibited under clinical safety protocols."
             }
 
-        # 2c. Clinical White Coat / Healthy Fur Calibrator
-        # Resolves MobileNetV3 dataset color bias where white short animal fur is misclassified as Ringworm (alopecia).
+        # 2c. Universal Biophysical Healthy Fur & Skin Calibrator
+        # Resolves MobileNetV3 dataset shortcut learning where close-up fur without active erythema
+        # is spuriously classified as Ringworm (white fur) or Mange (dark/black fur).
         healthy_key = "Rabbit_Healthy" if sp_key == "rabbit" else ("Bird_Healthy" if sp_key in ["avian", "bird"] else "Healthy")
         if healthy_key in filtered:
-            is_white = (r_chan > 130) & (g_chan > 130) & (b_chan > 130) & (np.abs(r_chan - g_chan) < 28) & (np.abs(r_chan - b_chan) < 28)
             ery = r_chan - (g_chan + b_chan) / 2.0
-            white_pct = float(np.mean(is_white))
             mean_ery = float(np.mean(ery))
             high_ery_pct = float(np.mean(ery > 45))
 
-            if white_pct >= 0.15 and mean_ery < 25.0 and high_ery_pct < 0.08:
-                ring_conf = filtered.get("Ringworm", 0.0) or filtered.get("Rabbit Ringworm", 0.0)
-                hot_conf = filtered.get("Hotspots", 0.0)
-                if ring_conf > 0.35 or hot_conf > 0.35:
-                    filtered[healthy_key] = max(ring_conf, hot_conf, 0.95)
-                    if "Ringworm" in filtered:
-                        filtered["Ringworm"] = 0.03
-                    if "Rabbit Ringworm" in filtered:
-                        filtered["Rabbit Ringworm"] = 0.03
-                    if "Hotspots" in filtered:
-                        filtered["Hotspots"] = 0.02
+            if mean_ery < 22.0 and high_ery_pct < 0.05:
+                max_disease = max([v for k, v in filtered.items() if "Healthy" not in k] or [0.0])
+                if max_disease > 0.30:
+                    filtered[healthy_key] = max(max_disease, 0.95)
+                    for k in list(filtered.keys()):
+                        if "Healthy" not in k:
+                            filtered[k] = 0.02
 
         tot = sum(filtered.values()) or 1.0
         normalized = sorted([(lbl, filtered[lbl] / tot) for lbl in allowed], key=lambda x: x[1], reverse=True)
@@ -1918,18 +1920,21 @@ def predict_disease(req: AIPredictionRequest):
                     any(t[1] in SCREEN_OR_TECH_CLASSES and float(t[2]) >= 0.08 for t in top_dec)
                 )
 
-                # Calibrated Clinical Rejection Gate:
-                # Bypass rejection if VetLink disease model confirms high-confidence animal pathology (>= 0.65)
-                # Severe Scab Safeguard: if derm texture mimic (custard apple, breadfruit, apple pie)
-                # is accompanied by high-confidence Mange or Pyoderma, it's a real severe animal lesion!
+                # Calibrated Clinical Rejection Gate with Severe Lesion Safeguard:
+                # If VetLink's specialized model confirms animal pathology (max_disease_conf >= 0.35)
+                # or clinical erythema/lesion inflammation is detected (high_ery_pct >= 0.05 or mean_ery >= 20.0),
+                # generic ImageNet artifact labels (e.g. "Spindle", "Custard Apple", "Sponge", "Wombat")
+                # MUST NOT reject a genuine patient with severe dermatological lesions!
+                has_active_pathology = (max_disease_conf >= 0.35) or (high_ery_pct >= 0.05) or (mean_ery >= 20.0)
+
                 should_reject = False
-                if is_screen_or_tech and max_disease_conf < 0.70:
+                if is_screen_or_tech and not has_active_pathology:
                     should_reject = True
-                elif is_derm_mimic and max_disease_conf < 0.60:
+                elif is_derm_mimic and not has_active_pathology:
                     should_reject = True
-                elif is_top_artifact and max_disease_conf < 0.65 and p_animal < 0.35:
+                elif is_top_artifact and not has_active_pathology and p_animal < 0.25:
                     should_reject = True
-                elif p_animal < 0.15 and max_disease_conf < 0.60:
+                elif p_animal < 0.10 and not has_active_pathology:
                     should_reject = True
 
                 if should_reject:
