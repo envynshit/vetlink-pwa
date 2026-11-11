@@ -164,6 +164,10 @@ function getFormalMedicalName(display) {
 }
 
 export default function NewPatient({ onBack, onViewPending, onCapture, currentUser, authToken, apiBaseUrl, isOffline }) {
+  const roleStr = String(currentUser?.role || '').toLowerCase().trim()
+  const isStaff = roleStr.includes('staff') || roleStr === 'clinic staff'
+  const isVetOrAdmin = !isStaff && (roleStr.includes('admin') || roleStr.includes('vet') || roleStr.includes('doctor') || !currentUser?.role)
+
   const [name, setName] = useState('')
   const [species, setSpecies] = useState('Canine')
   const [breed, setBreed] = useState('')
@@ -741,7 +745,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
             >
               View Patient Records
             </button>
-            {currentUser?.role === 'Clinic Admin' && onCapture && savedSummary.fullPayload && (
+            {isVetOrAdmin && onCapture && savedSummary.fullPayload && (
               <button
                 type="button"
                 className="action-btn blue"
@@ -1569,37 +1573,58 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                           ⚠️ {error}
                         </div>
                       )}
-                      <button
-                        className="capture-btn"
-                        type="button"
-                        onClick={() => handleSave(true)}
-                        disabled={isSaving}
-                        style={{
-                          background: 'linear-gradient(135deg, #0d9488, #0f766e)',
-                          boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
-                          fontWeight: 700,
-                          padding: '12px 18px',
-                          fontSize: '0.92rem'
-                        }}
-                      >
-                        {isSaving ? 'SAVING PATIENT & SCAN...' : 'SAVE AND PROCEED TO CONSULTATION RX'}
-                      </button>
-                      <button
-                        className="secondary-btn"
-                        type="button"
-                        onClick={() => handleSave(false)}
-                        disabled={isSaving}
-                        style={{
-                          padding: '12px 18px',
-                          fontSize: '0.88rem',
-                          fontWeight: 600,
-                          background: '#f8fafc',
-                          border: '1px solid #cbd5e1',
-                          color: '#334155'
-                        }}
-                      >
-                        SAVE & INTAKE NEW PATIENT
-                      </button>
+                      {/* Role-Based Action Control: Only Veterinarian or Clinic Admin can proceed directly to Consultation Rx */}
+                      {isVetOrAdmin ? (
+                        <>
+                          <button
+                            className="capture-btn"
+                            type="button"
+                            onClick={() => handleSave(true)}
+                            disabled={isSaving}
+                            style={{
+                              background: 'linear-gradient(135deg, #0d9488, #0f766e)',
+                              boxShadow: '0 4px 12px rgba(13, 148, 136, 0.25)',
+                              fontWeight: 700,
+                              padding: '12px 18px',
+                              fontSize: '0.92rem'
+                            }}
+                          >
+                            {isSaving ? 'SAVING PATIENT & SCAN...' : 'SAVE AND PROCEED TO CONSULTATION RX'}
+                          </button>
+                          <button
+                            className="secondary-btn"
+                            type="button"
+                            onClick={() => handleSave(false)}
+                            disabled={isSaving}
+                            style={{
+                              padding: '12px 18px',
+                              fontSize: '0.88rem',
+                              fontWeight: 600,
+                              background: '#f8fafc',
+                              border: '1px solid #cbd5e1',
+                              color: '#334155'
+                            }}
+                          >
+                            SAVE & INTAKE NEW PATIENT
+                          </button>
+                        </>
+                      ) : (
+                        <button
+                          className="capture-btn"
+                          type="button"
+                          onClick={() => handleSave(false)}
+                          disabled={isSaving}
+                          style={{
+                            background: 'linear-gradient(135deg, #0284c7, #0369a1)',
+                            boxShadow: '0 4px 12px rgba(2, 132, 199, 0.25)',
+                            fontWeight: 700,
+                            padding: '12px 18px',
+                            fontSize: '0.92rem'
+                          }}
+                        >
+                          {isSaving ? 'SAVING PATIENT INTAKE...' : 'SAVE PATIENT FOR VETERINARY REVIEW'}
+                        </button>
+                      )}
                     </div>
                   )}
                 </div>

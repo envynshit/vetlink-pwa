@@ -1861,19 +1861,24 @@ def predict_disease(req: AIPredictionRequest):
         fur_density = float(np.mean(dx > 9))
         human_ratio = float(np.mean(is_skin))
 
-        # Check surface roughness: human skin is smooth (lap_var < 350.0).
-        # Severe animal lesions with alopecia exhibit rough papules, scabs, and crusts (lap_var >= 350.0).
-        lum = 0.299 * r_chan + 0.587 * g_chan + 0.114 * b_chan
-        lap = lum[1:-1, 1:-1] * 4.0 - lum[:-2, 1:-1] - lum[2:, 1:-1] - lum[1:-1, :-2] - lum[1:-1, 2:]
-        lap_var = float(np.var(lap))
-        is_smooth_human_skin = (human_ratio >= 0.55) and (fur_density < 0.22) and (lap_var < 350.0)
+        # Check active inflammatory erythema (lesions)
+        ery = r_chan - (g_chan + b_chan) / 2.0
+        mean_ery = float(np.mean(ery))
+        high_ery_pct = float(np.mean(ery > 45))
 
-        if is_smooth_human_skin:
+        # Human Face & Cutaneous Subject Gate:
+        # Differentiates human skin / face from animal lesions and fur.
+        # Animal lesions exhibit high inflammatory erythema (high_ery_pct >= 0.08) or dense fur margins.
+        # Human skin (whether limbs or human faces with hair/eyes) exhibits low erythema (high_ery_pct < 0.06).
+        is_human_subject = (human_ratio >= 0.28 and fur_density < 0.22 and high_ery_pct < 0.06) or \
+                           (human_ratio >= 0.50 and fur_density < 0.25 and high_ery_pct < 0.08)
+
+        if is_human_subject:
             return {
                 "rejected": True,
-                "reason": "HUMAN_SKIN",
-                "detected": "Human Skin",
-                "message": "The submitted image exhibits human cutaneous characteristics. VetLink AI is strictly calibrated for veterinary companion animals (Canine, Feline, Avian, Rabbit). Human dermatological screening is strictly prohibited under clinical safety protocols."
+                "reason": "HUMAN_SUBJECT",
+                "detected": "Human Face / Cutaneous Subject",
+                "message": "The submitted image exhibits human facial or cutaneous characteristics. VetLink AI is strictly calibrated for veterinary companion animals (Canine, Feline, Avian, Rabbit). Human dermatological screening is strictly prohibited under clinical safety protocols."
             }
 
         # 2c. Universal Biophysical Healthy Fur & Skin Calibrator
@@ -1887,11 +1892,10 @@ def predict_disease(req: AIPredictionRequest):
 
             if mean_ery < 22.0 and high_ery_pct < 0.05:
                 max_disease = max([v for k, v in filtered.items() if "Healthy" not in k] or [0.0])
-                if max_disease > 0.30:
-                    filtered[healthy_key] = max(max_disease, 0.95)
-                    for k in list(filtered.keys()):
-                        if "Healthy" not in k:
-                            filtered[k] = 0.02
+                filtered[healthy_key] = max(max_disease, 0.95)
+                for k in list(filtered.keys()):
+                    if "Healthy" not in k:
+                        filtered[k] = 0.02
 
         tot = sum(filtered.values()) or 1.0
         normalized = sorted([(lbl, filtered[lbl] / tot) for lbl in allowed], key=lambda x: x[1], reverse=True)

@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
 import { updateConsultation, logAuditEvent } from '../db/database'
-import EmailPrescriptionModal from '../components/EmailPrescriptionModal'
 
 export const BASE_TREATMENT_PROTOCOLS = {
   // ── Canine (Aso) Protocols (Exact 11 dataset classes) ─────────
@@ -416,7 +415,6 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
   // Show "Add Custom Protocol" modal state
   const [showAddModal, setShowAddModal] = useState(false)
   const [showRxPreviewModal, setShowRxPreviewModal] = useState(false)
-  const [showEmailModal, setShowEmailModal] = useState(false)
   const [showLabSlipPreviewModal, setShowLabSlipPreviewModal] = useState(false)
   const [newProtocolName, setNewProtocolName] = useState('')
   const [newProtocolCategory, setNewProtocolCategory] = useState('Canine Protocols (Aso)')
@@ -1238,17 +1236,6 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
             >
               {isAwaitingLab ? 'View Laboratory Requisition Slip' : 'Preview & Print Prescription (Rx)'}
             </button>
-            {!isLibraryMode && !isAwaitingLab && (
-              <button
-                type="button"
-                className="secondary-btn"
-                onClick={() => setShowEmailModal(true)}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
-                title="Send prescription directly to pet owner's email address"
-              >
-                Email Prescription
-              </button>
-            )}
             {!isLibraryMode && (
               <button
                 type="button"
@@ -1779,28 +1766,6 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
               </button>
             </div>
           </div>
-        )}
-
-        {/* ── Email Prescription to Pet Owner Modal ──────────────── */}
-        {showEmailModal && (
-          <EmailPrescriptionModal
-            isOpen={showEmailModal}
-            onClose={() => setShowEmailModal(false)}
-            patient={patient ? { ...patient, ownerEmail: currentOwnerEmail || patient.ownerEmail } : caseData}
-            consultation={consultation || caseData?.consultation}
-            prescription={prescription}
-            clinicalNotes={clinicalNotes}
-            diagnosis={cleanDiagnosisDisplay}
-            doctorName={doctorName}
-            prcLicense={doctorPrcLicense}
-            ptrNumber={doctorPtrNumber}
-            currentUser={currentUser}
-            authToken={authToken}
-            apiBaseUrl={apiBaseUrl}
-            onPrescriptionSent={(newEmail) => {
-              setCurrentOwnerEmail(newEmail)
-            }}
-          />
         )}
       </div>
     </>

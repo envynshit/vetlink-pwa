@@ -51,6 +51,10 @@ const CLINICAL_DIAGNOSIS_GROUPS = {
 
 export default function Patients({ authToken, apiBaseUrl = 'http://localhost:8000', isOffline = false, currentUser, onProceedToTreatment }) {
 
+  const roleStr = String(currentUser?.role || '').toLowerCase().trim()
+  const isStaff = roleStr.includes('staff') || roleStr === 'clinic staff'
+  const isVetOrAdmin = !isStaff
+
   const [patients, setPatients] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
   const [isLoading, setIsLoading] = useState(true)
@@ -439,7 +443,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
     setStaffRecheckWeight(patient.weight || '')
     setStaffRecheckVitals('')
     setVetAdjustedRx('')
-    setRecheckTab(currentUser?.role === 'Clinic Staff' ? 'evaluate' : 'history')
+    setRecheckTab(isStaff ? 'evaluate' : 'history')
     setRecheckFile(null)
     setRecheckPreview(null)
     setPastConsult(null)
@@ -518,8 +522,6 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
     if (!recheckPatient) return
     setIsSavingRecheck(true)
     setRecheckError('')
-
-    const isStaff = currentUser?.role === 'Clinic Staff'
 
     // Strict Clinical Validation: Follow-up lesion image is required for accurate visual evaluation
     if (!recheckFile && !isStaff) {
@@ -652,20 +654,22 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
         >
           Active Patients ({activeCount})
         </button>
-        <button
-          type="button"
-          className={`filter-pill ${viewTab === 'archived' ? 'active' : ''}`}
-          onClick={() => setViewTab('archived')}
-          style={{
-            fontWeight: 700,
-            padding: '7px 16px',
-            background: viewTab === 'archived' ? '#fef3c7' : undefined,
-            color: viewTab === 'archived' ? '#92400e' : undefined,
-            borderColor: viewTab === 'archived' ? '#fde68a' : undefined
-          }}
-        >
-          Recycle Bin / Archived ({archivedCount})
-        </button>
+        {!isStaff && (
+          <button
+            type="button"
+            className={`filter-pill ${viewTab === 'archived' ? 'active' : ''}`}
+            onClick={() => setViewTab('archived')}
+            style={{
+              fontWeight: 700,
+              padding: '7px 16px',
+              background: viewTab === 'archived' ? '#fef3c7' : undefined,
+              color: viewTab === 'archived' ? '#92400e' : undefined,
+              borderColor: viewTab === 'archived' ? '#fde68a' : undefined
+            }}
+          >
+            Recycle Bin / Archived ({archivedCount})
+          </button>
+        )}
       </div>
 
       <div className="patients-toolbar-wrap">
@@ -824,7 +828,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                       </>
                     ) : (
                       <>
-                        {currentUser?.role !== 'Clinic Staff' && (
+                        {!isStaff && (
                           <button
                             className="primary-btn table-action-btn view-case-btn"
                             type="button"
@@ -864,15 +868,17 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                         >
                           Edit
                         </button>
-                        <button
-                          className="small-outline table-action-btn delete-pill-btn"
-                          type="button"
-                          onClick={() => handleArchivePatient(patient)}
-                          title="Move Patient Record to Recycle Bin"
-                          style={{ color: '#f59e0b', borderColor: '#fcd34d' }}
-                        >
-                          Archive
-                        </button>
+                        {!isStaff && (
+                          <button
+                            className="small-outline table-action-btn delete-pill-btn"
+                            type="button"
+                            onClick={() => handleArchivePatient(patient)}
+                            title="Move Patient Record to Recycle Bin"
+                            style={{ color: '#f59e0b', borderColor: '#fcd34d' }}
+                          >
+                            Archive
+                          </button>
+                        )}
                       </>
                     )}
                   </div>
@@ -1003,12 +1009,12 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                   <input type="date" value={formData.lastVisit} onChange={(event) => setFormData({ ...formData, lastVisit: event.target.value })} />
                 </label>
                 <label>
-                  <span>Status {currentUser?.role === 'Clinic Staff' && <small style={{ color: '#64748b' }}>(Locked - Doctor/Admin only)</small>}</span>
+                  <span>Status {isStaff && <small style={{ color: '#64748b' }}>(Locked - Doctor/Admin only)</small>}</span>
                   <select
                     value={formData.status}
                     onChange={(event) => setFormData({ ...formData, status: event.target.value })}
-                    disabled={currentUser?.role === 'Clinic Staff'}
-                    title={currentUser?.role === 'Clinic Staff' ? 'Status modification restricted to Veterinarian / Administrator' : 'Change patient status'}
+                    disabled={isStaff}
+                    title={isStaff ? 'Status modification restricted to Veterinarian / Administrator' : 'Change patient status'}
                   >
                     <option>Active</option>
                     <option>Inactive</option>
@@ -1477,7 +1483,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
           >
             <header className="modal-header" style={{ flexShrink: 0, padding: '14px 20px', borderBottom: '1px solid var(--border, #334155)' }}>
               <h3 id="recheck-patient-title">
-                {currentUser?.role === 'Clinic Staff'
+                {isStaff
                   ? `Staff Patient Intake & Triage: ${recheckPatient.name} (${recheckPatient.id})`
                   : `Clinical Follow-Up & History: ${recheckPatient.name} (${recheckPatient.id})`}
               </h3>
@@ -1507,7 +1513,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
               </div>
 
               {/* If Veterinarian / Admin: Show Sub-Tabs for History Timeline vs Clinical Evaluation */}
-              {currentUser?.role !== 'Clinic Staff' && (
+              {!isStaff && (
                 <div style={{ display: 'flex', gap: 8 }}>
                   <button
                     type="button"
@@ -1530,7 +1536,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
             </div>
 
             {/* Tab 1: Comprehensive Medical Record History Timeline (Veterinarian View) */}
-            {currentUser?.role !== 'Clinic Staff' && recheckTab === 'history' && (
+            {!isStaff && recheckTab === 'history' && (
               <div style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden' }}>
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 14 }}>
                   {pastVisits.length === 0 ? (
@@ -1652,13 +1658,13 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
             )}
 
             {/* Tab 2: Recheck Form (Staff Intake OR Veterinarian Evaluation) */}
-            {(currentUser?.role === 'Clinic Staff' || recheckTab === 'evaluate') && (
+            {(isStaff || recheckTab === 'evaluate') && (
               <form style={{ display: 'flex', flexDirection: 'column', flex: 1, overflow: 'hidden', margin: 0 }} onSubmit={handleSaveRecheck}>
                 <div style={{ flex: 1, overflowY: 'auto', padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 10 }}>
                 {recheckError && <div className="alert-banner error" role="alert">{recheckError}</div>}
 
                 {/* Staff-Specific Triage Section */}
-                {currentUser?.role === 'Clinic Staff' && (
+                {isStaff && (
                   <div style={{ background: '#eff6ff', border: '1px solid #bfdbfe', padding: 12, borderRadius: 8, marginBottom: 14 }}>
                     <div style={{ fontWeight: 700, color: '#1e40af', fontSize: '0.88rem', marginBottom: 6 }}>
                       Clinic Staff Triage Intake
@@ -1859,7 +1865,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                 </div>
 
                 {/* Veterinarian Healing Stage & Rx Section (Hidden for Staff) */}
-                {currentUser?.role !== 'Clinic Staff' && (
+                {!isStaff && (
                   <>
                     <div style={{ marginBottom: 14 }}>
                       <span style={{ fontWeight: 'bold', fontSize: '0.85rem', color: '#1e293b', display: 'block', marginBottom: 6 }}>
@@ -2047,7 +2053,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                   <button className="small-outline" type="button" onClick={() => setRecheckPatient(null)} disabled={isSavingRecheck}>Cancel</button>
 
                   <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-                    {currentUser?.role !== 'Clinic Staff' && onProceedToTreatment && (
+                    {!isStaff && onProceedToTreatment && (
                       <button
                         type="button"
                         className="secondary-btn"
@@ -2067,7 +2073,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                     <button className="primary-btn" type="submit" disabled={isSavingRecheck}>
                       {isSavingRecheck
                         ? 'Saving...'
-                        : currentUser?.role === 'Clinic Staff'
+                        : isStaff
                           ? 'Save Staff Triage & Upload Photo'
                           : 'Save Follow-Up Consultation'}
                     </button>
