@@ -2,9 +2,9 @@ import { useState, useEffect, useRef } from 'react'
 import { updateConsultation, logAuditEvent } from '../db/database'
 
 export const BASE_TREATMENT_PROTOCOLS = {
-  // ── Canine (Aso) Protocols (Exact 11 dataset classes) ─────────
+  // ── Canine Protocols (Exact 11 dataset classes) ───────────────
   'Canine Mange': {
-    category: 'Canine Protocols (Aso)',
+    category: 'Canine Protocols',
     species: 'Canine',
     baseCondition: 'Mange',
     treatment: [
@@ -17,7 +17,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Sarcoptic mange (scabies) is highly contagious and zoonotic. Handlers should wear disposable gloves until skin scrapings confirm mite elimination.',
   },
   'Canine Ringworm': {
-    category: 'Canine Protocols (Aso)',
+    category: 'Canine Protocols',
     species: 'Canine',
     baseCondition: 'Ringworm',
     treatment: [
@@ -30,7 +30,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Dermatophytosis is contagious and zoonotic. Continue treatment until negative fungal culture or Wood\'s lamp clearance.',
   },
   'Canine Pyoderma': {
-    category: 'Canine Protocols (Aso)',
+    category: 'Canine Protocols',
     species: 'Canine',
     baseCondition: 'Pyoderma',
     treatment: [
@@ -43,7 +43,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Recheck cytology in 2 weeks. Continue antibiotic therapy for a minimum of 7 days past complete clinical lesion resolution.',
   },
   'Canine Hot Spots': {
-    category: 'Canine Protocols (Aso)',
+    category: 'Canine Protocols',
     species: 'Canine',
     baseCondition: 'Hot Spots',
     treatment: [
@@ -56,7 +56,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Acute moist dermatitis is often secondary to flea saliva allergy, ear canal infection, or atopy. Taper corticosteroid spray once lesion dries.',
   },
   'Canine Healthy': {
-    category: 'Canine Protocols (Aso)',
+    category: 'Canine Protocols',
     species: 'Canine',
     baseCondition: 'Healthy',
     treatment: [
@@ -69,22 +69,22 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Normal physical and integumentary exam. Return for routine annual wellness checkup and vaccinations.',
   },
 
-  // ── Feline (Pusa) Protocols (Feline-Safe Pharmacology) ─────────
+  // ── Feline Protocols (Feline-Safe Pharmacology) ───────────────
   'Feline Mange': {
-    category: 'Feline Protocols (Pusa)',
+    category: 'Feline Protocols',
     species: 'Feline',
     baseCondition: 'Mange',
     treatment: [
       'Feline-safe systemic spot-on acaricide (Selamectin / Revolution Plus or Fluralaner / Bravecto Plus for cats)',
-      'Gentle leave-on antiseptic foam / mousse (avoid water baths which cause severe distress and hypothermia in cats)',
+      'Antiseptic leave-on mousse (Douxo S3 Pyo) to reduce secondary bacterial burden without water immersion',
       'Thorough home premise sanitation; wash cat bedding and sanitise scratching posts in hot water (>60°C)',
-      'Toxicological Safety: Strictly isolate cats from any dogs recently treated with canine permethrin products',
+      'Toxicological Safety: Strictly isolate cats from canines recently treated with canine permethrin products',
     ],
     prescription: 'Bravecto Plus Spot-on (Fluralaner/Moxidectin for Cats) 1 tube applied topically to skin at base of skull. Dispense Douxo S3 Pyo Mousse (apply 3x weekly without bathing).',
     notes: 'FELINE TOXICOLOGY ALERT: Permethrin and organophosphates are lethal to felines. Never administer canine ectoparasiticides to cats. Notoedric mange requires 30-day isolation.',
   },
   'Feline Ringworm': {
-    category: 'Feline Protocols (Pusa)',
+    category: 'Feline Protocols',
     species: 'Feline',
     baseCondition: 'Ringworm',
     treatment: [
@@ -97,7 +97,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Cats are primary reservoir hosts for Microsporum canis. Monitor hepatic enzymes if therapy extends past 6 weeks. Treat until two consecutive weekly negative fungal cultures.',
   },
   'Feline Pyoderma': {
-    category: 'Feline Protocols (Pusa)',
+    category: 'Feline Protocols',
     species: 'Feline',
     baseCondition: 'Pyoderma',
     treatment: [
@@ -110,7 +110,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Feline pyoderma often manifests as chin acne or crusty miliary dermatitis. Recheck tape impression cytology in 14 days.',
   },
   'Feline Hot Spots': {
-    category: 'Feline Protocols (Pusa)',
+    category: 'Feline Protocols',
     species: 'Feline',
     baseCondition: 'Hot Spots',
     treatment: [
@@ -123,7 +123,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Cats groom compulsively with barbed papillae, rapidly eroding the epidermis. Investigate flea allergy dermatitis or psychogenic stress-induced alopecia.',
   },
   'Feline Healthy': {
-    category: 'Feline Protocols (Pusa)',
+    category: 'Feline Protocols',
     species: 'Feline',
     baseCondition: 'Healthy',
     treatment: [
@@ -136,14 +136,14 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Normal physical and integumentary exam. Return for routine annual wellness examination and core vaccinations.',
   },
 
-  // ── Avian Protocols (Ibon) ─────────────────────────────────
+  // ── Avian Protocols ───────────────────────────────────────────
   'Avian Fowl Pox': {
-    category: 'Avian Protocols (Ibon)',
+    category: 'Avian Protocols',
     species: 'Avian',
     baseCondition: 'Avian Fowl Pox',
     treatment: [
-      'Gentle antiseptic cleansing of cutaneous pox lesions with dilute povidone-iodine (1:10 dilution)',
-      'Vitamin A supplementation (oral drop or water-soluble) to promote epithelial mucosal healing',
+      'Antiseptic cleansing of localized cutaneous pox lesions with dilute povidone-iodine (1:10 dilution)',
+      'Oral Vitamin A supplementation to promote mucosal and epithelial healing',
       'Isolate affected bird from flock to prevent vector (mosquito) transmission',
       'Provide soft, easily digestible nutrition and monitor weight daily',
     ],
@@ -151,20 +151,20 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Cutaneous (dry) fowl pox is self-limiting in 3–4 weeks. Seek emergency veterinary care if diphtheritic (wet/mouth) lesions or dyspnea develop.',
   },
   'Scaly Face / Leg Mite': {
-    category: 'Avian Protocols (Ibon)',
+    category: 'Avian Protocols',
     species: 'Avian',
     baseCondition: 'Scaly Face / Leg Mite',
     treatment: [
-      'Topical or oral Ivermectin (0.2 mg/kg) applied to unfeathered skin of back of neck',
+      'Ivermectin (0.2 mg/kg) topical spot-on to unfeathered skin of back of neck',
       'Repeat dosing at 10–14 day intervals for 2–3 treatments to eliminate newly hatched mites',
-      'Apply thin layer of sterile mineral oil or paraffin sparingly to beak and leg crusts to suffocate mites (DO NOT obstruct nares/nostrils)',
-      'Thoroughly sanitize cage, perches, and toys in hot soapy water or safe aviary disinfectant',
+      'Apply thin layer of sterile mineral oil sparingly to beak and leg crusts (DO NOT obstruct nares/nostrils)',
+      'Thoroughly sanitize cage, perches, and toys in safe aviary disinfectant',
     ],
     prescription: 'Ivermectin 1% spot-on (1 drop topically on skin of back of neck), repeat on Day 14 and Day 28.',
     notes: 'Treat all in-contact cage mates. Monitor beak symmetry as chronic infestations can cause permanent beak malformation.',
   },
   'Healthy (Bird)': {
-    category: 'Avian Protocols (Ibon)',
+    category: 'Avian Protocols',
     species: 'Avian',
     baseCondition: 'Healthy (Bird)',
     treatment: [
@@ -177,22 +177,22 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Routine avian wellness checkup documented. Schedule routine annual veterinary examination.',
   },
 
-  // ── Rabbit Protocols (Kuneho) ──────────────────────────────
+  // ── Rabbit Protocols ──────────────────────────────────────────
   'Rabbit Mange': {
-    category: 'Rabbit Protocols (Kuneho)',
+    category: 'Rabbit Protocols',
     species: 'Rabbit',
     baseCondition: 'Rabbit Mange',
     treatment: [
       'Topical Selamectin spot-on (Revolution for puppies/kittens, 6–18 mg/kg) or subcutaneous Ivermectin (0.2–0.4 mg/kg)',
       'Repeat dosing at 14-day intervals for 2–3 treatments',
-      'Do NOT forcefully pick or peel ear crusts — allow crusts to slough off naturally to prevent auditory canal hemorrhage',
-      'Sanitize hutch, cage, litter box, and accessories with hot soapy water or safe veterinary disinfectant',
+      'Avoid aggressive manual crust debridement to prevent ear canal hemorrhage',
+      'Sanitize hutch, cage, litter box, and accessories with safe veterinary disinfectant',
     ],
     prescription: 'Selamectin spot-on (dosed to body weight) applied topically between shoulder blades; repeat in 14 days.',
     notes: 'Psoroptes cuniculi (ear mites) causes severe pain and crusting. Isolate from other rabbits until mite scraping confirms cure.',
   },
   'Rabbit Ringworm': {
-    category: 'Rabbit Protocols (Kuneho)',
+    category: 'Rabbit Protocols',
     species: 'Rabbit',
     baseCondition: 'Rabbit Ringworm',
     treatment: [
@@ -205,7 +205,7 @@ export const BASE_TREATMENT_PROTOCOLS = {
     notes: 'Dermatophytosis (ringworm) is zoonotic. Owners should wear disposable gloves during topical applications.',
   },
   'Healthy (Rabbit)': {
-    category: 'Rabbit Protocols (Kuneho)',
+    category: 'Rabbit Protocols',
     species: 'Rabbit',
     baseCondition: 'Healthy (Rabbit)',
     treatment: [
@@ -322,8 +322,8 @@ function printElementViaIframe(elementHtml, docTitle = 'Official Veterinary Docu
         <title>${docTitle}</title>
         <style>
           @page {
-            size: A4 portrait;
-            margin: 14mm 16mm;
+            size: auto;
+            margin: 6mm 8mm;
           }
           * {
             box-sizing: border-box;
@@ -336,6 +336,27 @@ function printElementViaIframe(elementHtml, docTitle = 'Official Veterinary Docu
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
             -webkit-print-color-adjust: exact;
             print-color-adjust: exact;
+          }
+          .no-print {
+            display: none !important;
+          }
+          .printable-card-target, #treatment-rx-paper, #treatment-lab-paper {
+            box-shadow: none !important;
+            border: 1.5px solid #0f172a !important;
+            border-radius: 6px !important;
+            padding: 5mm 6mm !important;
+            width: 100% !important;
+            max-width: 160mm !important;
+            margin: 0 auto !important;
+            font-size: 0.78rem !important;
+            line-height: 1.35 !important;
+            page-break-inside: avoid !important;
+            break-inside: avoid !important;
+          }
+          .rx-scrollable {
+            max-height: none !important;
+            overflow: visible !important;
+            white-space: pre-wrap !important;
           }
         </style>
       </head>
@@ -555,7 +576,9 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
           targetId: consultation.id,
           details: `Finalized prescription and treatment protocol for patient ${patient?.name || 'Patient'} (${selectedDisease}).`,
         })
-        setSuccessModalText('Treatment plan and customized prescription successfully saved to patient medical record.')
+        const timeStr = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })
+        setSaveMessage(`Consultation and prescription successfully saved to local device storage (IndexedDB) at ${timeStr}. Available 100% offline.`)
+        setSuccessModalText(`Treatment plan and customized prescription successfully saved to patient medical record at ${timeStr}. Available 100% offline.`)
         setShowSuccessModal(true)
       } else {
         setSaveMessage('Clinical protocol verified. (Reference mode — ready for clinical execution).')
@@ -648,16 +671,32 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
   const rxPrintCardRef = useRef(null)
   const labSlipPrintCardRef = useRef(null)
 
-  const handlePrintRx = () => {
-    const content = rxPrintCardRef.current ? rxPrintCardRef.current.innerHTML : ''
-    if (!content) return
-    printElementViaIframe(content, `Prescription_${patient?.name || 'Patient'}_${cleanRxId}`)
+  const handlePrintRx = async () => {
+    try {
+      await handleSaveTreatmentPlan()
+    } catch {
+      // Proceed to print even if offline storage had minor error
+    }
+    const cardEl = rxPrintCardRef.current || document.getElementById('treatment-rx-paper')
+    if (cardEl) {
+      printElementViaIframe(cardEl.outerHTML, `Prescription_${patient?.name || 'Patient'}_${cleanRxId}`)
+    } else {
+      window.print()
+    }
   }
 
-  const handlePrintLabSlip = () => {
-    const content = labSlipPrintCardRef.current ? labSlipPrintCardRef.current.innerHTML : ''
-    if (!content) return
-    printElementViaIframe(content, `LabOrder_${patient?.name || 'Patient'}_${cleanRxId}`)
+  const handlePrintLabSlip = async () => {
+    try {
+      await handleSaveTreatmentPlan()
+    } catch {
+      // Proceed to print
+    }
+    const cardEl = labSlipPrintCardRef.current || document.getElementById('treatment-lab-paper')
+    if (cardEl) {
+      printElementViaIframe(cardEl.outerHTML, `Lab_Order_${patient?.name || 'Patient'}_${cleanRxId}`)
+    } else {
+      window.print()
+    }
   }
 
   const cleanDiagnosisDisplay = secondaryDiagnosis
@@ -681,28 +720,28 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
 
   // Group protocol names for the categorized dropdown
   const categories = {
-    'Canine Protocols (Aso)': [],
-    'Feline Protocols (Pusa)': [],
-    'Avian Protocols (Ibon)': [],
-    'Rabbit Protocols (Kuneho)': [],
+    'Canine Protocols': [],
+    'Feline Protocols': [],
+    'Avian Protocols': [],
+    'Rabbit Protocols': [],
     'Common Dual Presentations': [],
     'Custom Clinic Protocols': [],
   }
 
   Object.entries(protocols).forEach(([key, val]) => {
-    const cat = val.category || 'Canine Protocols (Aso)'
+    const cat = val.category || 'Canine Protocols'
     if (cat.includes('Feline')) {
-      categories['Feline Protocols (Pusa)'].push(key)
+      categories['Feline Protocols'].push(key)
     } else if (cat.includes('Avian')) {
-      categories['Avian Protocols (Ibon)'].push(key)
+      categories['Avian Protocols'].push(key)
     } else if (cat.includes('Rabbit')) {
-      categories['Rabbit Protocols (Kuneho)'].push(key)
+      categories['Rabbit Protocols'].push(key)
     } else if (cat.includes('Dual')) {
       categories['Common Dual Presentations'].push(key)
     } else if (cat.includes('Custom')) {
       categories['Custom Clinic Protocols'].push(key)
     } else {
-      categories['Canine Protocols (Aso)'].push(key)
+      categories['Canine Protocols'].push(key)
     }
   })
 
@@ -710,8 +749,79 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
     <>
       <style>{`
         @media print {
-          .no-print, .modal-overlay {
+          @page {
+            size: 148mm auto;
+            margin: 4mm 6mm;
+          }
+          html, body {
+            visibility: hidden !important;
+            background: #ffffff !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            height: auto !important;
+            overflow: visible !important;
+          }
+          body * {
+            visibility: hidden !important;
+          }
+          .modal-overlay {
+            visibility: visible !important;
+            position: static !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            display: block !important;
+            width: auto !important;
+            height: auto !important;
+          }
+          .modal-dialog {
+            visibility: visible !important;
+            position: static !important;
+            background: transparent !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            border: none !important;
+            box-shadow: none !important;
+            max-width: 100% !important;
+            max-height: none !important;
+            display: block !important;
+            overflow: visible !important;
+          }
+          .modal-header,
+          .modal-footer,
+          .no-print,
+          .treatment-card,
+          .treatment-footer,
+          .app-nav,
+          nav,
+          header,
+          footer,
+          button {
             display: none !important;
+            visibility: hidden !important;
+          }
+          .printable-card-target,
+          .printable-card-target * {
+            visibility: visible !important;
+          }
+          .printable-card-target {
+            position: absolute !important;
+            left: 0 !important;
+            top: 0 !important;
+            width: 100% !important;
+            max-width: 138mm !important;
+            margin: 0 auto !important;
+            padding: 6mm 6mm !important;
+            background: #ffffff !important;
+            color: #0f172a !important;
+            border: 1.5px solid #0f172a !important;
+            border-radius: 6px !important;
+            box-shadow: none !important;
+            display: flex !important;
+            flex-direction: column !important;
+            font-size: 0.8rem !important;
+            line-height: 1.35 !important;
+            page-break-inside: avoid !important;
           }
         }
       `}</style>
@@ -1031,12 +1141,36 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
             <div className="treatment-section">
               <div className="treatment-section-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 6 }}>
                 <span>{isComorbid ? 'RECOMMENDED DUAL-CONDITION CARE PROTOCOL' : 'RECOMMENDED TREATMENT PROTOCOL (CLINICAL GUIDELINE)'}</span>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const joinedGuidelines = editableSteps.filter(Boolean).map((s, i) => `${i + 1}. ${s}`).join('\n')
+                      const updatedNotes = clinicalNotes
+                        ? `${clinicalNotes}\n\nClinical Protocol Pointers:\n${joinedGuidelines}`
+                        : `Clinical Protocol Pointers:\n${joinedGuidelines}`
+                      setClinicalNotes(updatedNotes)
+                      setSaveMessage('Clinical protocol pointers inserted into Home Care & Recheck Instructions.')
+                    }}
+                    title="Insert these protocol guidelines into Clinical Care & Home Instructions for the pet owner's prescription"
+                    style={{
+                      padding: '4px 10px',
+                      fontSize: '0.74rem',
+                      borderRadius: 6,
+                      border: '1px solid #93c5fd',
+                      background: '#eff6ff',
+                      color: '#1d4ed8',
+                      cursor: 'pointer',
+                      fontWeight: 700,
+                    }}
+                  >
+                    + Insert into Home Instructions (Rx)
+                  </button>
                   <button
                     type="button"
                     onClick={() => setIsEditingSteps(!isEditingSteps)}
                     style={{
-                      padding: '3px 8px',
+                      padding: '4px 10px',
                       fontSize: '0.74rem',
                       borderRadius: 6,
                       border: '1px solid #cbd5e1',
@@ -1053,7 +1187,7 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
                     onClick={() => setEditableSteps(treatmentSteps)}
                     title="Reset steps back to peer-reviewed standard clinical guidelines"
                     style={{
-                      padding: '3px 8px',
+                      padding: '4px 8px',
                       fontSize: '0.74rem',
                       borderRadius: 6,
                       border: '1px solid #cbd5e1',
@@ -1207,24 +1341,56 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
         )}
 
         {/* ── Action Buttons ──────────────────────────────────── */}
-        <div className="treatment-footer" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginTop: 20 }}>
-          <button className="secondary-btn small-back" type="button" onClick={onBack}>
+        <div className="treatment-footer no-print" style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center', justifyContent: 'space-between', marginTop: 24, paddingTop: 16, borderTop: '1px solid var(--border, #cbd5e1)' }}>
+          <button
+            type="button"
+            onClick={onBack}
+            style={{
+              height: 40,
+              width: 'auto',
+              flex: '0 0 auto',
+              padding: '8px 16px',
+              fontSize: '0.85rem',
+              fontWeight: 700,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 6,
+              borderRadius: 6,
+              border: '1px solid #cbd5e1',
+              background: '#f8fafc',
+              color: '#334155',
+              cursor: 'pointer',
+            }}
+          >
             ← Back to Patient Records
           </button>
-          <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <div style={{ display: 'flex', gap: 10, flexWrap: 'nowrap', alignItems: 'center' }}>
             {isLibraryMode && isVetOrAdmin && !isAwaitingLab && (
               <button
                 type="button"
-                className="secondary-btn"
                 onClick={handleSaveClinicSOP}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700, borderColor: '#5ca797', color: '#0f766e' }}
+                style={{
+                  height: 40,
+                  width: 'auto',
+                  flex: '0 0 auto',
+                  padding: '8px 16px',
+                  fontSize: '0.85rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontWeight: 700,
+                  border: '1px solid #0d9488',
+                  background: '#f0fdfa',
+                  color: '#0f766e',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                }}
               >
                 Save as Clinic SOP
               </button>
             )}
             <button
               type="button"
-              className="secondary-btn"
               onClick={() => {
                 if (isAwaitingLab) {
                   setShowLabSlipPreviewModal(true)
@@ -1232,17 +1398,47 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
                   setShowRxPreviewModal(true)
                 }
               }}
-              style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontWeight: 700 }}
+              style={{
+                height: 40,
+                width: 'auto',
+                flex: '0 0 auto',
+                padding: '8px 18px',
+                fontSize: '0.85rem',
+                display: 'inline-flex',
+                alignItems: 'center',
+                gap: 6,
+                fontWeight: 700,
+                color: '#1e3a8a',
+                border: '1px solid #93c5fd',
+                background: '#eff6ff',
+                borderRadius: 6,
+                cursor: 'pointer',
+              }}
             >
               {isAwaitingLab ? 'View Laboratory Requisition Slip' : 'Preview & Print Prescription (Rx)'}
             </button>
             {!isLibraryMode && (
               <button
                 type="button"
-                className="action-btn blue"
                 onClick={handleSaveTreatmentPlan}
                 disabled={isSaving}
-                style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}
+                style={{
+                  height: 40,
+                  width: 'auto',
+                  flex: '0 0 auto',
+                  padding: '8px 22px',
+                  fontSize: '0.85rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 6,
+                  fontWeight: 800,
+                  borderRadius: 6,
+                  background: '#0d9488',
+                  color: '#ffffff',
+                  border: 'none',
+                  cursor: isSaving ? 'not-allowed' : 'pointer',
+                  boxShadow: '0 2px 8px rgba(13, 148, 136, 0.3)',
+                }}
               >
                 {isSaving ? 'Saving...' : 'Save & Finalize Treatment Plan'}
               </button>
@@ -1279,10 +1475,10 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
                   onChange={(e) => setNewProtocolCategory(e.target.value)}
                   style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1px solid #cbd5e1', marginTop: 4, boxSizing: 'border-box' }}
                 >
-                  <option value="Canine Protocols (Aso)">Canine Protocols (Aso)</option>
-                  <option value="Feline Protocols (Pusa)">Feline Protocols (Pusa)</option>
-                  <option value="Avian Protocols (Ibon)">Avian Protocols (Ibon)</option>
-                  <option value="Rabbit Protocols (Kuneho)">Rabbit Protocols (Kuneho)</option>
+                  <option value="Canine Protocols">Canine Protocols</option>
+                  <option value="Feline Protocols">Feline Protocols</option>
+                  <option value="Avian Protocols">Avian Protocols</option>
+                  <option value="Rabbit Protocols">Rabbit Protocols</option>
                   <option value="Common Dual Presentations">Common Dual Presentations</option>
                   <option value="Custom Clinic Protocols">Custom Clinic Protocols</option>
                 </select>
@@ -1338,9 +1534,9 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
 
       {/* ── Prescription Preview Modal (Option B - In-App Preview) ── */}
       {showRxPreviewModal && (
-        <div className="modal-overlay no-print" role="dialog" aria-modal="true" style={{ zIndex: 1000 }}>
+        <div className="modal-overlay" role="dialog" aria-modal="true" style={{ zIndex: 1000 }}>
           <div className="modal-dialog" style={{ maxWidth: 760, maxHeight: '92vh', overflowY: 'auto', background: '#0f172a', padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, color: '#f8fafc' }}>
+            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, color: '#f8fafc' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#38bdf8' }}>Official Prescription Preview</h3>
                 <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>Review the document before generating physical printout or saving PDF</p>
@@ -1356,22 +1552,22 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
             </div>
 
             {/* Authentic White Paper Document Preview */}
-            <div ref={rxPrintCardRef} style={{ background: '#ffffff', color: '#0f172a', padding: 28, borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid #0f172a' }}>
-              <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: 12, marginBottom: 16 }}>
-                <h2 style={{ margin: '0 0 4px', fontSize: '1.45rem', color: '#0f172a', letterSpacing: '0.5px' }}>
+            <div ref={rxPrintCardRef} className="printable-card-target" id="treatment-rx-paper" style={{ background: '#ffffff', color: '#0f172a', padding: 16, borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid #0f172a', breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+              <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: 8, marginBottom: 10 }}>
+                <h2 style={{ margin: '0 0 2px', fontSize: '1.25rem', color: '#0f172a', letterSpacing: '0.5px' }}>
                   VETLINK ANIMAL CARE CLINIC & HOSPITAL
                 </h2>
-                <p style={{ margin: '0 0 4px', fontSize: '0.85rem', color: '#334155', fontWeight: 600 }}>
+                <p style={{ margin: '0 0 2px', fontSize: '0.80rem', color: '#334155', fontWeight: 600 }}>
                   Veterinary Medical Center • Department of Clinical Dermatology
                 </p>
-                <p style={{ margin: 0, fontSize: '0.75rem', color: '#64748b' }}>
+                <p style={{ margin: 0, fontSize: '0.72rem', color: '#64748b' }}>
                   765 J. P. Rizal St., Conception Uno, Marikina City, Philippines, 1807 • Mobile: 0945 867 9891 • vetlink.lamuan@gmail.com
                 </p>
               </div>
 
-              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 12, padding: 10, background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 14, fontSize: '0.84rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: 10, padding: '6px 10px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: 6, marginBottom: 8, fontSize: '0.80rem' }}>
                 <div>
-                  <strong>FOR (PATIENT):</strong> <span style={{ fontSize: '0.98rem', fontWeight: 800 }}>{patient?.name || 'Buddy'}</span><br />
+                  <strong>FOR (PATIENT):</strong> <span style={{ fontSize: '0.92rem', fontWeight: 800 }}>{patient?.name || 'Buddy'}</span><br />
                   <strong>SPECIES / BREED:</strong> {patientSpecies} • {patient?.breed || 'Aspin'}<br />
                   <strong>WEIGHT:</strong> {patient?.weight ? `${patient.weight} kg` : 'N/A'} • <strong>AGE:</strong> {patient?.age || 'N/A'}
                 </div>
@@ -1383,30 +1579,30 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
                 </div>
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '6px 12px', background: '#f1f5f9', borderLeft: '4px solid #1e3a8a', marginBottom: 14 }}>
-                <span style={{ fontSize: '0.84rem' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '4px 10px', background: '#f1f5f9', borderLeft: '4px solid #1e3a8a', marginBottom: 8 }}>
+                <span style={{ fontSize: '0.80rem' }}>
                   <strong>CLINICAL DIAGNOSIS:</strong> <u style={{ fontWeight: 800 }}>{cleanDiagnosisDisplay}</u> ({patientSpecies})
                 </span>
-                <span style={{ fontSize: '0.75rem', fontWeight: 700, color: '#16a34a' }}>
+                <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#16a34a' }}>
                   VALIDATED CLINICAL PRESCRIPTION
                 </span>
               </div>
 
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-                  <span style={{ fontFamily: 'Georgia, serif', fontSize: '2rem', fontWeight: 900, color: '#1e3a8a', lineHeight: 1 }}>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginBottom: 4 }}>
+                  <span style={{ fontFamily: 'Georgia, serif', fontSize: '1.4rem', fontWeight: 900, color: '#1e3a8a', lineHeight: 1 }}>
                     ℞
                   </span>
-                  <span style={{ fontWeight: 800, fontSize: '0.92rem', color: '#0f172a' }}>
+                  <span style={{ fontWeight: 800, fontSize: '0.84rem', color: '#0f172a' }}>
                     MEDICATION & DOSAGE DISPENSING ORDER
                   </span>
                 </div>
                 <div style={{
-                  padding: 12,
+                  padding: '8px 10px',
                   border: '1.5px solid #0f172a',
                   borderRadius: 6,
-                  fontSize: '0.9rem',
-                  lineHeight: 1.6,
+                  fontSize: '0.82rem',
+                  lineHeight: 1.4,
                   whiteSpace: 'pre-wrap',
                   fontFamily: 'Consolas, "Courier New", monospace',
                   background: '#fafafa',
@@ -1416,44 +1612,73 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
                 </div>
               </div>
 
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontWeight: 800, fontSize: '0.84rem', color: '#0f172a', marginBottom: 4, textTransform: 'uppercase' }}>
+              <div style={{ marginBottom: 8 }}>
+                <div style={{ fontWeight: 800, fontSize: '0.80rem', color: '#0f172a', marginBottom: 3, textTransform: 'uppercase' }}>
                   CLINICAL CARE, HOME ADMINISTRATION & RECHECK INSTRUCTIONS:
                 </div>
-                <div style={{ padding: 10, border: '1px solid #cbd5e1', borderRadius: 6, fontSize: '0.82rem', lineHeight: 1.5, background: '#ffffff', color: '#334155' }}>
+                <div style={{ padding: '6px 10px', border: '1px solid #cbd5e1', borderRadius: 6, fontSize: '0.78rem', lineHeight: 1.35, background: '#ffffff', color: '#334155' }}>
                   {clinicalNotes}
                 </div>
               </div>
 
-              <div style={{ marginTop: 24, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: 12, borderTop: '1px solid #cbd5e1' }}>
-                <div style={{ fontSize: '0.72rem', color: '#64748b', maxWidth: 360, lineHeight: 1.4 }}>
+              <div style={{ marginTop: 12, display: 'flex', justifyContent: 'space-between', alignItems: 'flex-end', paddingTop: 8, borderTop: '1px solid #cbd5e1', breakInside: 'avoid', pageBreakInside: 'avoid' }}>
+                <div style={{ fontSize: '0.68rem', color: '#64748b', maxWidth: 360, lineHeight: 1.3 }}>
                   Notice: Official prescription issued under Republic Act 9268. Valid for 30 days from date of examination. Substitution requires attending veterinarian authorization.
                 </div>
                 <div style={{ textAlign: 'center', width: 210 }}>
-                  <div style={{ borderBottom: '1px solid #0f172a', marginBottom: 4, height: 24 }}></div>
-                  <strong style={{ fontSize: '0.88rem' }}>{doctorName}</strong><br />
-                  {hasPrc && (<><span style={{ fontSize: '0.75rem', color: '#475569' }}>PRC License No.: {doctorPrcLicense}</span><br /></>)}
-                  {hasPtr && (<span style={{ fontSize: '0.75rem', color: '#475569' }}>PTR No.: {doctorPtrNumber}</span>)}
+                  <div style={{ borderBottom: '1px solid #0f172a', marginBottom: 4, height: 20 }}></div>
+                  <strong style={{ fontSize: '0.84rem' }}>{doctorName}</strong><br />
+                  {hasPrc && (<><span style={{ fontSize: '0.72rem', color: '#475569' }}>PRC License No.: {doctorPrcLicense}</span><br /></>)}
+                  {hasPtr && (<span style={{ fontSize: '0.72rem', color: '#475569' }}>PTR No.: {doctorPtrNumber}</span>)}
                 </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16, flexWrap: 'wrap' }}>
+            <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
               <button
                 type="button"
                 onClick={() => setShowRxPreviewModal(false)}
-                className="small-outline"
-                style={{ padding: '8px 16px', background: '#334155', color: '#f8fafc', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                style={{
+                  height: 40,
+                  width: 'auto',
+                  flex: '0 0 auto',
+                  padding: '8px 20px',
+                  background: '#334155',
+                  color: '#f8fafc',
+                  border: '1px solid #475569',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '0.86rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
                 Close Preview
               </button>
               <button
                 type="button"
                 onClick={handlePrintRx}
-                className="action-btn blue"
-                style={{ padding: '8px 20px', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+                style={{
+                  height: 40,
+                  width: 'auto',
+                  flex: '0 0 auto',
+                  padding: '8px 24px',
+                  background: '#0d9488',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: 800,
+                  fontSize: '0.88rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(13, 148, 136, 0.4)',
+                }}
               >
-                Confirm & Print Document
+                Confirm &amp; Print Document
               </button>
             </div>
           </div>
@@ -1462,9 +1687,9 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
 
       {/* ── Laboratory Slip Preview Modal (Option B - In-App Preview) ── */}
       {showLabSlipPreviewModal && (
-        <div className="modal-overlay no-print" role="dialog" aria-modal="true" style={{ zIndex: 1000 }}>
+        <div className="modal-overlay" role="dialog" aria-modal="true" style={{ zIndex: 1000 }}>
           <div className="modal-dialog" style={{ maxWidth: 760, maxHeight: '92vh', overflowY: 'auto', background: '#0f172a', padding: 20 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, color: '#f8fafc' }}>
+            <div className="no-print" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14, color: '#f8fafc' }}>
               <div>
                 <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 800, color: '#f59e0b' }}>Official Laboratory Requisition Order Preview</h3>
                 <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: '#94a3b8' }}>Review requisition specifications before printing laboratory order slip</p>
@@ -1480,7 +1705,7 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
             </div>
 
             {/* Authentic White Paper Requisition Sheet */}
-            <div ref={labSlipPrintCardRef} style={{ background: '#ffffff', color: '#0f172a', padding: 28, borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid #0f172a' }}>
+            <div ref={labSlipPrintCardRef} className="printable-card-target" id="treatment-lab-paper" style={{ background: '#ffffff', color: '#0f172a', padding: 28, borderRadius: 8, boxShadow: '0 4px 20px rgba(0,0,0,0.3)', border: '2px solid #0f172a' }}>
               <div style={{ textAlign: 'center', borderBottom: '2px solid #0f172a', paddingBottom: 12, marginBottom: 14 }}>
                 <h2 style={{ margin: '0 0 4px', fontSize: '1.45rem', color: '#0f172a', letterSpacing: '0.5px' }}>
                   VETLINK ANIMAL CARE CLINIC & HOSPITAL
@@ -1547,22 +1772,51 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
               </div>
             </div>
 
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
+            <div className="no-print" style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, marginTop: 16 }}>
               <button
                 type="button"
                 onClick={() => setShowLabSlipPreviewModal(false)}
-                className="small-outline"
-                style={{ padding: '8px 16px', background: '#334155', color: '#f8fafc', border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600 }}
+                style={{
+                  height: 40,
+                  width: 'auto',
+                  flex: '0 0 auto',
+                  padding: '8px 20px',
+                  background: '#334155',
+                  color: '#f8fafc',
+                  border: '1px solid #475569',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: 700,
+                  fontSize: '0.86rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                }}
               >
                 Close Preview
               </button>
               <button
                 type="button"
                 onClick={handlePrintLabSlip}
-                className="action-btn blue"
-                style={{ padding: '8px 20px', borderRadius: 6, cursor: 'pointer', fontWeight: 700 }}
+                style={{
+                  height: 40,
+                  width: 'auto',
+                  flex: '0 0 auto',
+                  padding: '8px 24px',
+                  background: '#d97706',
+                  color: '#ffffff',
+                  border: 'none',
+                  borderRadius: 6,
+                  cursor: 'pointer',
+                  fontWeight: 800,
+                  fontSize: '0.88rem',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  boxShadow: '0 2px 8px rgba(217, 119, 6, 0.4)',
+                }}
               >
-                Confirm & Print Requisition Slip
+                Confirm &amp; Print Requisition Slip
               </button>
             </div>
           </div>

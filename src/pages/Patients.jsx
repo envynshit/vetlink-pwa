@@ -20,7 +20,7 @@ import ImageViewerModal from '../components/ImageViewerModal'
 import EmailPrescriptionModal from '../components/EmailPrescriptionModal'
 
 const CLINICAL_DIAGNOSIS_GROUPS = {
-  'Canine Protocols (Aso)': [
+  'Canine Protocols': [
     'Canine Mange',
     'Canine Ringworm',
     'Canine Pyoderma',
@@ -30,19 +30,19 @@ const CLINICAL_DIAGNOSIS_GROUPS = {
     'Ringworm with Secondary Pyoderma',
     'Hot Spots with Secondary Pyoderma',
   ],
-  'Feline Protocols (Pusa)': [
+  'Feline Protocols': [
     'Feline Mange',
     'Feline Ringworm',
     'Feline Pyoderma',
     'Feline Hot Spots',
     'Feline Healthy',
   ],
-  'Avian Protocols (Ibon)': [
+  'Avian Protocols': [
     'Avian Fowl Pox',
     'Scaly Face / Leg Mite',
     'Healthy (Bird)',
   ],
-  'Rabbit Protocols (Kuneho)': [
+  'Rabbit Protocols': [
     'Rabbit Mange',
     'Rabbit Ringworm',
     'Healthy (Rabbit)',

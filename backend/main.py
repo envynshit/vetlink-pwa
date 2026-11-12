@@ -15,7 +15,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
-from reportlab.lib.pagesizes import letter
+from reportlab.lib.pagesizes import A5, letter
 from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, HRFlowable
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib import colors
@@ -609,32 +609,24 @@ def get_owner(owner_id: str, authorization: Optional[str] = Header(default=None)
 
 
 def generate_prescription_pdf_bytes(req: EmailPrescriptionRequest) -> bytes:
-    """Generates an authentic Philippine Veterinary Medical Prescription PDF in memory."""
+    """Generates an authentic Philippine Veterinary Medical Prescription PDF in memory formatted to a compact Rx Pad size."""
     buf = io.BytesIO()
-    doc = SimpleDocTemplate(
-        buf,
-        pagesize=letter,
-        leftMargin=36,
-        rightMargin=36,
-        topMargin=36,
-        bottomMargin=36
-    )
     styles = getSampleStyleSheet()
 
     primary_color = colors.HexColor("#1e3a8a")
     dark_text = colors.HexColor("#0f172a")
     gray_text = colors.HexColor("#475569")
 
-    h_title = ParagraphStyle('HTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=15, leading=18, textColor=primary_color, alignment=1)
-    h_sub = ParagraphStyle('HSub', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8.5, leading=11, textColor=dark_text, alignment=1)
-    h_contact = ParagraphStyle('HContact', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, leading=10, textColor=gray_text, alignment=1)
+    h_title = ParagraphStyle('HTitle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=12, leading=15, textColor=primary_color, alignment=1)
+    h_sub = ParagraphStyle('HSub', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=7.5, leading=10, textColor=dark_text, alignment=1)
+    h_contact = ParagraphStyle('HContact', parent=styles['Normal'], fontName='Helvetica', fontSize=6.5, leading=8.5, textColor=gray_text, alignment=1)
 
-    meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=11, textColor=dark_text)
-    diag_style = ParagraphStyle('DiagStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9, leading=12, textColor=primary_color)
-    rx_head = ParagraphStyle('RxHead', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=12, leading=15, textColor=primary_color)
-    rx_body = ParagraphStyle('RxBody', parent=styles['Normal'], fontName='Helvetica', fontSize=8.5, leading=12, textColor=dark_text)
-    notes_body = ParagraphStyle('NotesBody', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=8, leading=11, textColor=colors.HexColor('#334155'))
-    sig_text = ParagraphStyle('SigText', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, leading=10, textColor=gray_text)
+    meta_style = ParagraphStyle('MetaStyle', parent=styles['Normal'], fontName='Helvetica', fontSize=7.5, leading=10.5, textColor=dark_text)
+    diag_style = ParagraphStyle('DiagStyle', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=8, leading=11, textColor=primary_color)
+    rx_head = ParagraphStyle('RxHead', parent=styles['Normal'], fontName='Helvetica-Bold', fontSize=9.5, leading=12, textColor=primary_color)
+    rx_body = ParagraphStyle('RxBody', parent=styles['Normal'], fontName='Helvetica', fontSize=8, leading=11, textColor=dark_text)
+    notes_body = ParagraphStyle('NotesBody', parent=styles['Normal'], fontName='Helvetica-Oblique', fontSize=7.5, leading=10, textColor=colors.HexColor('#334155'))
+    sig_text = ParagraphStyle('SigText', parent=styles['Normal'], fontName='Helvetica', fontSize=6.5, leading=8.5, textColor=gray_text)
 
     story = [
         Paragraph('VETLINK ANIMAL CARE CLINIC &amp; HOSPITAL', h_title),
@@ -642,8 +634,8 @@ def generate_prescription_pdf_bytes(req: EmailPrescriptionRequest) -> bytes:
         Paragraph('Veterinary Medical Center &bull; Department of Clinical Dermatology', h_sub),
         Spacer(1, 2),
         Paragraph('765 J. P. Rizal St., Conception Uno, Marikina City, Philippines, 1807 &bull; Mobile: 0945 867 9891 &bull; vetlink.lamuan@gmail.com', h_contact),
-        Spacer(1, 4),
-        HRFlowable(width='100%', thickness=1.5, color=primary_color, spaceBefore=2, spaceAfter=8)
+        Spacer(1, 3),
+        HRFlowable(width='100%', thickness=1.2, color=primary_color, spaceBefore=1, spaceAfter=6)
     ]
 
     p_name = req.patient_name or 'Patient'
@@ -667,64 +659,65 @@ def generate_prescription_pdf_bytes(req: EmailPrescriptionRequest) -> bytes:
     col1_html = f"<b>PATIENT:</b> {p_name}<br/><b>SPECIES / BREED:</b> {p_spec} &bull; {p_breed}<br/><b>WEIGHT:</b> {p_wt}"
     col2_html = f"<b>OWNER:</b> {o_name}<br/><b>DATE:</b> {date_str}<br/><b>RX / CASE ID:</b> {rx_num}"
 
+    # A5 printable width: 420 - 48 = 372 pt
     meta_table = Table([
         [Paragraph(col1_html, meta_style), Paragraph(col2_html, meta_style)]
-    ], colWidths=[270, 270])
+    ], colWidths=[186, 186])
     meta_table.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#cbd5e1')),
+        ('BOX', (0,0), (-1,-1), 0.75, colors.HexColor('#cbd5e1')),
         ('INNERGRID', (0,0), (-1,-1), 0.5, colors.HexColor('#e2e8f0')),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('RIGHTPADDING', (0,0), (-1,-1), 6),
+    ]))
+    story.append(meta_table)
+    story.append(Spacer(1, 6))
+
+    diag_html = f"<b>CLINICAL DIAGNOSIS:</b> <u>{req.diagnosis or 'Clinical Dermatological Condition'}</u>"
+    diag_table = Table([[Paragraph(diag_html, diag_style)]], colWidths=[372])
+    diag_table.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#eff6ff')),
+        ('BOX', (0,0), (-1,-1), 0.75, colors.HexColor('#bfdbfe')),
+        ('LEFTPADDING', (0,0), (-1,-1), 6),
+        ('TOPPADDING', (0,0), (-1,-1), 4),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+    ]))
+    story.append(diag_table)
+    story.append(Spacer(1, 6))
+
+    story.append(Paragraph('<b>Rx MEDICATION &amp; DOSAGE DISPENSING ORDER:</b>', rx_head))
+    story.append(Spacer(1, 2))
+
+    rx_html = (req.prescription_text or 'No oral or topical medication prescribed.').replace('\n', '<br/>')
+    rx_box = Table([[Paragraph(rx_html, rx_body)]], colWidths=[372])
+    rx_box.setStyle(TableStyle([
+        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
+        ('BOX', (0,0), (-1,-1), 0.75, colors.HexColor('#94a3b8')),
         ('TOPPADDING', (0,0), (-1,-1), 6),
         ('BOTTOMPADDING', (0,0), (-1,-1), 6),
         ('LEFTPADDING', (0,0), (-1,-1), 8),
         ('RIGHTPADDING', (0,0), (-1,-1), 8),
     ]))
-    story.append(meta_table)
-    story.append(Spacer(1, 8))
-
-    diag_html = f"<b>CLINICAL DIAGNOSIS:</b> <u>{req.diagnosis or 'Clinical Dermatological Condition'}</u>"
-    diag_table = Table([[Paragraph(diag_html, diag_style)]], colWidths=[540])
-    diag_table.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#eff6ff')),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#bfdbfe')),
-        ('LEFTPADDING', (0,0), (-1,-1), 8),
-        ('TOPPADDING', (0,0), (-1,-1), 5),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
-    ]))
-    story.append(diag_table)
-    story.append(Spacer(1, 8))
-
-    story.append(Paragraph('<b>Rx MEDICATION &amp; DOSAGE DISPENSING ORDER:</b>', rx_head))
-    story.append(Spacer(1, 3))
-
-    rx_html = (req.prescription_text or 'No oral or topical medication prescribed.').replace('\n', '<br/>')
-    rx_box = Table([[Paragraph(rx_html, rx_body)]], colWidths=[540])
-    rx_box.setStyle(TableStyle([
-        ('BACKGROUND', (0,0), (-1,-1), colors.HexColor('#f8fafc')),
-        ('BOX', (0,0), (-1,-1), 1, colors.HexColor('#94a3b8')),
-        ('TOPPADDING', (0,0), (-1,-1), 8),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 8),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
-    ]))
     story.append(rx_box)
-    story.append(Spacer(1, 8))
+    story.append(Spacer(1, 6))
 
-    story.append(Paragraph('<b>CLINICAL CARE, HOME ADMINISTRATION &amp; RECHECK INSTRUCTIONS:</b>', ParagraphStyle('InstH', parent=meta_style, fontName='Helvetica-Bold', fontSize=8)))
-    story.append(Spacer(1, 3))
+    story.append(Paragraph('<b>CLINICAL CARE, HOME ADMINISTRATION &amp; RECHECK INSTRUCTIONS:</b>', ParagraphStyle('InstH', parent=meta_style, fontName='Helvetica-Bold', fontSize=7.5)))
+    story.append(Spacer(1, 2))
 
     notes_html = (req.clinical_notes or 'Follow standard clinical monitoring. Contact clinic if adverse reactions occur.').replace('\n', '<br/>')
-    notes_box = Table([[Paragraph(notes_html, notes_body)]], colWidths=[540])
+    notes_box = Table([[Paragraph(notes_html, notes_body)]], colWidths=[372])
     notes_box.setStyle(TableStyle([
         ('BACKGROUND', (0,0), (-1,-1), colors.white),
         ('BOX', (0,0), (-1,-1), 0.75, colors.HexColor('#cbd5e1')),
-        ('TOPPADDING', (0,0), (-1,-1), 6),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 6),
-        ('LEFTPADDING', (0,0), (-1,-1), 10),
-        ('RIGHTPADDING', (0,0), (-1,-1), 10),
+        ('TOPPADDING', (0,0), (-1,-1), 5),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 5),
+        ('LEFTPADDING', (0,0), (-1,-1), 8),
+        ('RIGHTPADDING', (0,0), (-1,-1), 8),
     ]))
     story.append(notes_box)
-    story.append(Spacer(1, 14))
+    story.append(Spacer(1, 8))
 
     doc_name = req.doctor_name or 'Attending Veterinarian'
     prc_lic = (req.prc_license or '').strip()
@@ -742,16 +735,32 @@ def generate_prescription_pdf_bytes(req: EmailPrescriptionRequest) -> bytes:
 
     sig_table = Table([
         [Paragraph(sig_left, sig_text), Paragraph(sig_right, ParagraphStyle('SigR', parent=sig_text, alignment=2))]
-    ], colWidths=[340, 200])
+    ], colWidths=[232, 140])
     sig_table.setStyle(TableStyle([
-        ('LINEABOVE', (0,0), (-1,-1), 1, colors.HexColor('#cbd5e1')),
-        ('TOPPADDING', (0,0), (-1,-1), 8),
-        ('BOTTOMPADDING', (0,0), (-1,-1), 4),
+        ('LINEABOVE', (0,0), (-1,-1), 0.75, colors.HexColor('#cbd5e1')),
+        ('TOPPADDING', (0,0), (-1,-1), 6),
+        ('BOTTOMPADDING', (0,0), (-1,-1), 2),
         ('LEFTPADDING', (0,0), (-1,-1), 0),
         ('RIGHTPADDING', (0,0), (-1,-1), 0),
     ]))
     story.append(sig_table)
 
+    # Calculate optimal compact page height dynamically to fit written content snugly without bottom blank void
+    printable_width = 372
+    top_margin = 12
+    bottom_margin = 12
+    content_height = sum(f.wrap(printable_width, 5000)[1] for f in story)
+    page_height = round(content_height + top_margin + bottom_margin + 20)
+    compact_height = max(240, min(842, page_height))
+
+    doc = SimpleDocTemplate(
+        buf,
+        pagesize=(420, compact_height),
+        leftMargin=24,
+        rightMargin=24,
+        topMargin=top_margin,
+        bottomMargin=bottom_margin
+    )
     doc.build(story)
     return buf.getvalue()
 
