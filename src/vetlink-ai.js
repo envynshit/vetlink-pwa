@@ -35,7 +35,7 @@ export const SPECIES_CLASSES = {
 export const CLASS_DISPLAY = {
   'Avian Fowl Pox':                            'Avian Fowl Pox',
   'Bird_Healthy':                              'Healthy (Bird)',
-  'Healthy':                                   'Healthy',
+  'Healthy':                                   'Healthy (Intact Skin & Coat)',
   'Hotspots':                                  'Hot Spots',
   'Mange':                                     'Mange',
   'Pyoderma':                                  'Pyoderma',
@@ -254,6 +254,102 @@ function checkHumanSkinGate(imageElement) {
 }
 
 /**
+ * Biophysical Surface Telemetry for Intact Coat vs. Focal Lesions (Offline Parity).
+ * Evaluates erythema, crusting, fur density, and center-to-outer alopecia ratio directly
+ * on the 224x224 Float32 pixel buffer. Prevents healthy light/white coats from triggering
+ * Ringworm texture shortcuts while protecting true dry circular alopecia and scaly fungal lesions.
+ */
+function auditIntactCoatPlaque(rgbFloats) {
+  const totalPx = 224 * 224
+  let totalLum = 0
+  let totalEry = 0
+  let highEryCount = 0
+  let crustCount = 0
+  let gradCount = 0
+  let centerGradCount = 0
+  let outerGradCount = 0
+  let centerTotal = 0
+  let outerTotal = 0
+
+  for (let y = 0; y < 224; y++) {
+    for (let x = 0; x < 224; x++) {
+      const idx = (y * 224 + x) * 3
+      const r = rgbFloats[idx]
+      const g = rgbFloats[idx + 1]
+      const b = rgbFloats[idx + 2]
+
+      const lum = 0.299 * r + 0.587 * g + 0.114 * b
+      totalLum += lum
+
+      const ery = r - (g + b) / 2.0
+      totalEry += ery
+      if (ery > 45) highEryCount++
+
+      // Crusting / scaly keratin biomarker
+      if (r > 130 && g > 100 && b < 110 && (r - b) > 30 && ery > 15) {
+        crustCount++
+      }
+
+      // Horizontal edge gradient across red channel
+      if (x < 223) {
+        const nextR = rgbFloats[idx + 3]
+        const isEdge = Math.abs(nextR - r) > 9 ? 1 : 0
+        gradCount += isEdge
+
+        const isCenter = (y >= 70 && y < 154 && x >= 70 && x < 153)
+        if (isCenter) {
+          centerGradCount += isEdge
+          centerTotal++
+        } else {
+          outerGradCount += isEdge
+          outerTotal++
+        }
+      }
+    }
+  }
+
+  const meanLum = totalLum / totalPx
+  const meanEry = totalEry / totalPx
+  const highEryPct = highEryCount / totalPx
+  const crustRatio = crustCount / totalPx
+  const furDensity = gradCount / (224 * 223)
+  const centerFur = centerGradCount / Math.max(centerTotal, 1)
+  const outerFur = outerGradCount / Math.max(outerTotal, 1)
+  const centerOuterRatio = centerFur / Math.max(outerFur, 0.001)
+
+  const isIntactHealthy = (
+    furDensity >= 0.018 &&
+    highEryPct < 0.015 &&
+    meanEry < 15.0 &&
+    centerOuterRatio >= 0.70 &&
+    crustRatio < 0.03 &&
+    meanLum >= 70.0
+  )
+
+  let dynamicHealthy = 0.0
+  if (isIntactHealthy) {
+    const eryFactor = Math.max(0.0, Math.min(1.0, 1.0 - (highEryPct / 0.015)))
+    const ratioClamped = Math.min(1.30, Math.max(0.70, centerOuterRatio))
+    const uniformityFactor = (ratioClamped - 0.70) / (1.30 - 0.70)
+    const furFactor = Math.max(0.0, Math.min(1.0, (furDensity - 0.015) / 0.065))
+    const lumFactor = Math.max(0.0, Math.min(1.0, (meanLum - 70.0) / 100.0))
+    const composite = 0.40 * eryFactor + 0.30 * uniformityFactor + 0.20 * furFactor + 0.10 * lumFactor
+    dynamicHealthy = 0.78 + 0.16 * composite
+  }
+
+  return {
+    isIntactHealthy,
+    dynamicHealthy,
+    meanLum,
+    meanEry,
+    highEryPct,
+    crustRatio,
+    furDensity,
+    centerOuterRatio,
+  }
+}
+
+/**
  * Preprocess an image element for MobileNetV3Large.
  * The model was exported with include_preprocessing=True (Node 0: MUL 1/127.5, Node 1: ADD -1),
  * so it expects float32 pixels in [0, 255].
@@ -439,6 +535,7 @@ export async function predict(imageElement, species = 'Canine') {
             top3:         data.top3 || [],
             gradcam,
             engine:       'backend',
+            biophysicalTelemetry: data.biophysical_telemetry || null,
           }
         }
       } catch (err) {
@@ -541,6 +638,26 @@ export async function predict(imageElement, species = 'Canine') {
       } catch (felineErr) {
         console.warn('[VetLink AI] Feline ear focus error:', felineErr)
       }
+    }
+
+    // Biophysical Intact Coat & Dry Alopecia Safeguard (Offline WASM Parity)
+    // Prevents high-albedo healthy white coats from triggering Ringworm shortcuts
+    // while safeguarding genuine dry circular alopecia plaques and scaly fungal lesions.
+    const healthyTarget = ['Healthy', 'Bird_Healthy', 'Rabbit_Healthy'].find((k) => allowedClasses.includes(k))
+    const rawSum = Object.values(candidateScores).reduce((a, b) => a + b, 0) || 1.0
+    const rawHealthyConf = healthyTarget ? (candidateScores[healthyTarget] || 0) / rawSum : 1.0
+
+    const coatAudit = auditIntactCoatPlaque(rgbFloats)
+    if (coatAudit.isIntactHealthy && healthyTarget && rawHealthyConf < 0.60) {
+      const dynH = coatAudit.dynamicHealthy
+      const otherKeys = Object.keys(candidateScores).filter((k) => k !== healthyTarget)
+      const otherSum = otherKeys.reduce((acc, k) => acc + (candidateScores[k] || 0), 0)
+      const scale = (1.0 - dynH) / Math.max(otherSum, 1e-6)
+      otherKeys.forEach((k) => {
+        candidateScores[k] = (candidateScores[k] || 0) * scale
+      })
+      candidateScores[healthyTarget] = dynH
+      console.log(`[VetLink AI WASM] Intact coat safeguard activated. Dynamic Healthy: ${(dynH * 100).toFixed(1)}%`)
     }
 
     // Biophysical Surface Telemetry (Erythema metrics for clinical telemetry)
@@ -648,6 +765,16 @@ export async function predict(imageElement, species = 'Canine') {
       top3,
       gradcam,
       engine: 'wasm',
+      biophysicalTelemetry: {
+        highEryPct: coatAudit.highEryPct,
+        furDensity: coatAudit.furDensity,
+        centerFurDensity: coatAudit.centerFurDensity,
+        outerFurDensity: coatAudit.outerFurDensity,
+        centerOuterRatio: coatAudit.centerOuterRatio,
+        crustRatio: coatAudit.crustRatio,
+        meanLuminance: coatAudit.meanLum,
+        isIntactHealthy: coatAudit.isIntactHealthy,
+      },
     }
   } catch (wasmErr) {
     console.error('[VetLink AI] WASM inference error:', wasmErr)

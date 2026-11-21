@@ -492,11 +492,32 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
   const safeDiagnosis = String(diagnosis || '')
   const safeSecondaryDiagnosis = typeof secondaryDiagnosis === 'string' ? secondaryDiagnosis : ''
 
+  // Pediatric Case Detection (< 8 weeks or < 2 months)
+  const isPediatric = (() => {
+    const ageStr = String(patient?.age || caseData?.age || '').toLowerCase().trim()
+    if (!ageStr) return false
+    if (ageStr.includes('week') || ageStr.includes('wk') || ageStr.includes('linggo')) {
+      const num = parseFloat(ageStr)
+      return isNaN(num) || num < 8
+    }
+    if (ageStr.includes('month') || ageStr.includes('mo') || ageStr.includes('buwan')) {
+      const num = parseFloat(ageStr)
+      return !isNaN(num) && num < 2
+    }
+    const num = parseFloat(ageStr)
+    return !isNaN(num) && num > 0 && num < 0.17 // less than 2 months in decimal years
+  })()
+
   // FR7: 60% Clinical Protocol Activation Threshold Rule (Thesis pp. 11, 41, 46, 56)
   const isSubThreshold = (aiResult?.confidence !== undefined && aiResult.confidence < 0.60) &&
                          !safeDiagnosis.toLowerCase().includes('healthy') && !isOverridden
 
   let treatmentSteps = [...(primaryProtocol?.treatment || [])]
+
+  // Pediatric safety note if age < 8 weeks
+  if (isPediatric && !safeDiagnosis.toLowerCase().includes('healthy')) {
+    treatmentSteps.unshift('[PEDIATRIC PATIENT ALERT - AGE < 8 WEEKS] Hepatic and renal drug clearance mechanisms are immature in neonates. Attending veterinarian should adjust oral systemic therapies or prioritize gentle localized topical antisepsis.')
+  }
 
   // Comorbidity steps merging
   if (isComorbid && secondaryProtocol && Array.isArray(secondaryProtocol.treatment) && secondaryProtocol.treatment.length > 0) {
@@ -975,6 +996,91 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
                   )
                 ))}
               </select>
+            </div>
+          </div>
+        )}
+
+        {/* Patient Clinical Demographics & Vitals Bar */}
+        {patient && (
+          <div style={{
+            background: 'var(--surface, #ffffff)',
+            border: '1px solid var(--border, #cbd5e1)',
+            borderRadius: 12,
+            padding: '12px 18px',
+            marginBottom: 16,
+            boxShadow: '0 1px 3px rgba(0,0,0,0.04)',
+            display: 'flex',
+            justifyContent: 'space-between',
+            alignItems: 'center',
+            flexWrap: 'wrap',
+            gap: 12,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 14, flexWrap: 'wrap' }}>
+              <div>
+                <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#64748b', fontWeight: 700, display: 'block' }}>
+                  Patient Demographics
+                </span>
+                <strong style={{ fontSize: '1.05rem', color: 'var(--text-h, #0f172a)' }}>
+                  {patient.name || 'Patient'}
+                </strong>
+                <span style={{ fontSize: '0.85rem', color: '#475569', marginLeft: 6 }}>
+                  ({patient.species || patientSpecies}{patient.breed ? ` • ${patient.breed}` : ''}{patient.gender ? ` • ${patient.gender}` : ''})
+                </span>
+              </div>
+            </div>
+
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              {/* Recorded Weight Badge */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: 8,
+                padding: '4px 12px',
+                textAlign: 'center',
+              }}>
+                <span style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>
+                  Recorded Weight
+                </span>
+                <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a' }}>
+                  {patient.weight ? `${patient.weight} kg` : (caseData?.weight ? `${caseData.weight} kg` : 'N/A')}
+                </span>
+              </div>
+
+              {/* Recorded Age Badge */}
+              <div style={{
+                background: '#f8fafc',
+                border: '1px solid #cbd5e1',
+                borderRadius: 8,
+                padding: '4px 12px',
+                textAlign: 'center',
+              }}>
+                <span style={{ fontSize: '0.68rem', color: '#64748b', textTransform: 'uppercase', fontWeight: 700, display: 'block' }}>
+                  Recorded Age
+                </span>
+                <span style={{ fontSize: '0.92rem', fontWeight: 800, color: '#0f172a' }}>
+                  {patient.age || 'N/A'}
+                </span>
+              </div>
+
+              {/* Pediatric Alert Pill */}
+              {isPediatric && (
+                <span style={{
+                  fontSize: '0.74rem',
+                  fontWeight: 800,
+                  padding: '6px 12px',
+                  borderRadius: 6,
+                  background: '#fef3c7',
+                  color: '#92400e',
+                  border: '1px solid #fde68a',
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 4,
+                }}>
+                  Pediatric Case (&lt; 8 Wks)
+                </span>
+              )}
             </div>
           </div>
         )}

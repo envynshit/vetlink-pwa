@@ -1828,7 +1828,7 @@ SPECIES_CLASS_MAP = {
 CLASS_DISPLAY_NAMES = {
     "Avian Fowl Pox": "Avian Fowl Pox",
     "Bird_Healthy": "Healthy (Bird)",
-    "Healthy": "Healthy",
+    "Healthy": "Healthy (Intact Skin & Coat)",
     "Hotspots": "Hot Spots",
     "Mange": "Mange",
     "Pyoderma": "Pyoderma",
@@ -1901,6 +1901,64 @@ DERM_TEXTURE_MIMICS = {
     "conch", "snail", "slug", "broom", "whisk", "doormat", "paintbrush"
 }
 
+def audit_intact_coat_plaque(img_arr):
+    """
+    Biophysical Surface Telemetry for Intact Coat vs. Focal Lesions.
+    Evaluates erythema, crusting, fur density, and center-to-outer alopecia ratio.
+    Prevents healthy light/white coats from triggering Ringworm texture shortcuts
+    while protecting true dry circular alopecia plaques and scaly fungal lesions.
+    """
+    import numpy as np
+    r_chan, g_chan, b_chan = img_arr[:, :, 0], img_arr[:, :, 1], img_arr[:, :, 2]
+    lum = 0.299 * r_chan + 0.587 * g_chan + 0.114 * b_chan
+    mean_lum = float(np.mean(lum))
+    ery = r_chan - (g_chan + b_chan) / 2.0
+    mean_ery = float(np.mean(ery))
+    high_ery_pct = float(np.mean(ery > 45))
+
+    dx = np.abs(r_chan[:, 1:] - r_chan[:, :-1])
+    fur_density = float(np.mean(dx > 9))
+    dx_center = dx[70:154, 70:153]
+    center_fur = float(np.mean(dx_center > 9))
+
+    mask_outer = np.ones((224, 223), dtype=bool)
+    mask_outer[70:154, 70:153] = False
+    outer_fur = float(np.mean(dx[mask_outer] > 9))
+    center_outer_ratio = center_fur / max(outer_fur, 0.001)
+
+    is_crust = (r_chan > 130) & (g_chan > 100) & (b_chan < 110) & ((r_chan - b_chan) > 30) & (ery > 15)
+    crust_ratio = float(np.mean(is_crust))
+
+    is_intact = (
+        fur_density >= 0.018 and
+        high_ery_pct < 0.015 and
+        mean_ery < 15.0 and
+        center_outer_ratio >= 0.70 and
+        crust_ratio < 0.03 and
+        mean_lum >= 70.0
+    )
+
+    dynamic_healthy = 0.0
+    if is_intact:
+        ery_factor = max(0.0, min(1.0, 1.0 - (high_ery_pct / 0.015)))
+        ratio_clamped = min(1.30, max(0.70, center_outer_ratio))
+        uniformity_factor = (ratio_clamped - 0.70) / (1.30 - 0.70)
+        fur_factor = max(0.0, min(1.0, (fur_density - 0.015) / 0.065))
+        lum_factor = max(0.0, min(1.0, (mean_lum - 70.0) / 100.0))
+        composite = 0.40 * ery_factor + 0.30 * uniformity_factor + 0.20 * fur_factor + 0.10 * lum_factor
+        dynamic_healthy = 0.78 + 0.16 * composite
+
+    return {
+        "is_intact": is_intact,
+        "dynamic_healthy": dynamic_healthy,
+        "mean_lum": mean_lum,
+        "mean_ery": mean_ery,
+        "high_ery_pct": high_ery_pct,
+        "fur_density": fur_density,
+        "center_outer_ratio": center_outer_ratio,
+        "crust_ratio": crust_ratio
+    }
+
 @app.post("/api/ai/predict")
 def predict_disease(req: AIPredictionRequest):
     try:
@@ -1958,7 +2016,24 @@ def predict_disease(req: AIPredictionRequest):
                     filtered = cand_filtered
                     break
 
-        # 2b. Human Skin Rejection Gate
+        # 2b. Biophysical Intact Coat & Dry Alopecia Safeguard
+        # Prevents high-albedo healthy white coats from being misclassified as Ringworm
+        # due to training dataset representation bias, while strictly safeguarding
+        # genuine dry circular alopecia plaques and scaly lesions.
+        healthy_target = next((k for k in ["Healthy", "Bird_Healthy", "Rabbit_Healthy"] if k in allowed), None)
+        raw_healthy_conf = (filtered.get(healthy_target, 0.0) / (sum(filtered.values()) or 1.0)) if healthy_target else 1.0
+
+        coat_audit = audit_intact_coat_plaque(img_arr)
+        if coat_audit["is_intact"] and healthy_target and raw_healthy_conf < 0.60:
+            dyn_h = coat_audit["dynamic_healthy"]
+            other_keys = [k for k in filtered.keys() if k != healthy_target]
+            other_sum = sum(filtered[k] for k in other_keys)
+            scale = (1.0 - dyn_h) / max(other_sum, 1e-6)
+            for k in other_keys:
+                filtered[k] = filtered[k] * scale
+            filtered[healthy_target] = dyn_h
+
+        # 2c. Human Skin Rejection Gate
         r_chan = img_arr[:, :, 0]
         g_chan = img_arr[:, :, 1]
         b_chan = img_arr[:, :, 2]

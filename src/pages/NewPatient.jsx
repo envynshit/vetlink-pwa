@@ -1031,7 +1031,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                 lineHeight: 1.45,
                 textAlign: 'left',
               }}>
-                <strong>Clinical Imaging Tip:</strong> Take a tight close-up photo where the lesion fills 70–80% of the frame. Wide shots showing the full dog face or body will cause the AI to focus on surrounding healthy fur instead of the lesion.
+                <strong>Clinical Imaging Tip:</strong> Part the fur and focus tightly on the lesion so it fills 70–80% of the viewfinder. For healthy coat screenings, capture unbroken fur texture under clear, even lighting.
               </div>
             </div>
 
@@ -1318,6 +1318,77 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                         </div>
                       </div>
                     )}
+
+                    {/* Explainable AI: Biophysical Surface Telemetry Panel */}
+                    {aiResult.biophysicalTelemetry && (() => {
+                      const t = aiResult.biophysicalTelemetry
+                      const eryPct = typeof t.highEryPct === 'number'
+                        ? (t.highEryPct * 100).toFixed(1)
+                        : (typeof t.high_ery_pct === 'number' ? (t.high_ery_pct * 100).toFixed(1) : '0.0')
+                      const furPct = typeof t.furDensity === 'number'
+                        ? (t.furDensity * 100).toFixed(1)
+                        : (typeof t.fur_density === 'number' ? (t.fur_density * 100).toFixed(1) : '0.0')
+                      const ratio = typeof t.centerOuterRatio === 'number'
+                        ? t.centerOuterRatio.toFixed(2)
+                        : (typeof t.center_outer_ratio === 'number' ? t.center_outer_ratio.toFixed(2) : '1.00')
+                      const isHealthyPlaque = Boolean(t.isIntactHealthy || t.is_intact_healthy_coat)
+                      const isLowEry = parseFloat(eryPct) < 1.5
+                      const isDenseFur = parseFloat(furPct) >= 14.0
+                      const isUniformCoat = parseFloat(ratio) >= 0.75
+
+                      return (
+                        <div style={{
+                          margin: '6px 0 12px',
+                          padding: '10px 12px',
+                          background: 'rgba(15, 23, 42, 0.75)',
+                          border: '1px solid #334155',
+                          borderRadius: 8,
+                        }}>
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8, flexWrap: 'wrap', gap: 6 }}>
+                            <span style={{ fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.5px', color: '#94a3b8', fontWeight: 700 }}>
+                              Explainable AI: Biophysical Surface Telemetry
+                            </span>
+                            <span style={{
+                              fontSize: '0.68rem',
+                              padding: '2px 8px',
+                              borderRadius: 4,
+                              fontWeight: 700,
+                              background: isHealthyPlaque ? 'rgba(74, 222, 128, 0.18)' : 'rgba(248, 113, 113, 0.18)',
+                              color: isHealthyPlaque ? '#4ade80' : '#f87171',
+                              border: `1px solid ${isHealthyPlaque ? '#4ade80' : '#f87171'}`,
+                            }}>
+                              {isHealthyPlaque ? 'Uniform Intact Coat Texture' : 'Active Dermatological Plaque'}
+                            </span>
+                          </div>
+
+                          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 8, fontSize: '0.72rem' }}>
+                            <div style={{ background: '#1e293b', padding: '6px 8px', borderRadius: 6, border: '1px solid #334155', textAlign: 'center' }}>
+                              <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem' }}>Active Erythema</span>
+                              <strong style={{ color: isLowEry ? '#4ade80' : '#f87171', fontSize: '0.85rem' }}>{eryPct}%</strong>
+                              <span style={{ color: '#64748b', display: 'block', fontSize: '0.62rem' }}>
+                                {isLowEry ? 'Uninflamed' : 'Active Erythema'}
+                              </span>
+                            </div>
+
+                            <div style={{ background: '#1e293b', padding: '6px 8px', borderRadius: 6, border: '1px solid #334155', textAlign: 'center' }}>
+                              <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem' }}>Coat Texture</span>
+                              <strong style={{ color: isDenseFur ? '#38bdf8' : '#fbbf24', fontSize: '0.85rem' }}>{furPct}%</strong>
+                              <span style={{ color: '#64748b', display: 'block', fontSize: '0.62rem' }}>
+                                {isDenseFur ? 'Dense Fur' : 'Sparse / Bare Skin'}
+                              </span>
+                            </div>
+
+                            <div style={{ background: '#1e293b', padding: '6px 8px', borderRadius: 6, border: '1px solid #334155', textAlign: 'center' }}>
+                              <span style={{ color: '#94a3b8', display: 'block', fontSize: '0.65rem' }}>Alopecia Plaque</span>
+                              <strong style={{ color: isUniformCoat ? '#4ade80' : '#c084fc', fontSize: '0.85rem' }}>{ratio}</strong>
+                              <span style={{ color: '#64748b', display: 'block', fontSize: '0.62rem' }}>
+                                {isUniformCoat ? 'Uniform Coat' : 'Alopecia Plaque'}
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                      )
+                    })()}
 
                     {/* Colab-exact Prediction Banner with Differential Ambiguity Alert */}
                     <div style={{ borderTop: '1px dashed #334155', paddingTop: 10, marginTop: 4, fontFamily: 'monospace' }}>
