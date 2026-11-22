@@ -539,9 +539,13 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
     treatmentSteps.unshift('[CONFIRMATORY LAB TESTING INDICATED] Pre-screening algorithmic score is below the 60% Clinical Protocol Activation Threshold. Attending veterinarian should execute secondary confirmatory diagnostics (microscopic skin scraping, fungal DTM culture, or tape cytology) to rule out differential conditions.')
   }
 
+  const isOutOfScopeCase = Boolean(caseData?.isOutOfScope || aiResult?.isOutOfScope || (isSubThreshold && !safeDiagnosis.toLowerCase().includes('healthy')))
+
   // Initial combined prescription text
   let initialPrescription = primaryProtocol?.prescription || ''
-  if (isComorbid && secondaryProtocol) {
+  if (isOutOfScopeCase && !isOverridden) {
+    initialPrescription = '[PRESCRIPTION SUSPENDED - OBJECTIVE 1.4 PROTOCOL]\nScreening confidence is below activation threshold (<60%) or atypical/out-of-scope lesion detected. First-line pharmacotherapy auto-fill suspended pending physical veterinary examination and secondary diagnostic lab tests (Wound exploration / FNA / Skin scrape / Cytology / DTM).'
+  } else if (isComorbid && secondaryProtocol) {
     initialPrescription = `1. PRIMARY (${safeDiagnosis.toUpperCase()}):\n${primaryProtocol?.prescription || ''}\n\n2. CONCURRENT (${safeSecondaryDiagnosis.toUpperCase()}):\n${secondaryProtocol?.prescription || ''}`
   }
 
@@ -552,6 +556,8 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
   }
   if (isOverridden) {
     initialNotes = `[VETERINARIAN CLINICAL OVERRIDE]: Attending clinician modified diagnosis to ${safeDiagnosis}${caseData?.overrideNotes ? `: "${caseData.overrideNotes}"` : '.'} ${initialNotes}`
+  } else if (isOutOfScopeCase) {
+    initialNotes = `[Objective 1.4 Atypical/OOD Notice]: AI pre-screening match is below activation threshold or flagged out-of-scope (${aiResult?.percent ?? '<60%'}). Secondary confirmatory diagnostics mandated prior to therapy. ${initialNotes}`
   } else if (isSubThreshold) {
     initialNotes = `[FR7 Triage Notice]: AI pre-screening match was below the calibrated 60% Clinical Protocol Activation Threshold (${aiResult?.percent ?? '<60%'}). Secondary confirmatory laboratory diagnostics are advised. ${initialNotes}`
   }

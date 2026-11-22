@@ -199,8 +199,29 @@ export async function loadAnimalVerifierModel() {
  * Replicates the YCbCr and fur density differential gate from backend/main.py:1862-1885.
  * Prevents non-veterinary human subjects from being misdiagnosed as animal diseases.
  */
-function checkHumanSkinGate(imageElement) {
+/**
+ * Fast Client-Side Human Face & Skin Rejection Gate (100% Offline Universal).
+ * Combines native browser FaceDetector (when supported in Chromium/Android/Edge)
+ * with broadened YCbCr central-region skin spectrum analysis across all browsers (including Safari/iOS).
+ * Rejects human portraits, faces, and human cutaneous subjects before veterinary classification.
+ */
+async function checkHumanSkinGate(imageElement) {
   try {
+    // 1. Fast Native Browser FaceDetector Check (when available)
+    let faceDetected = false
+    if (typeof window !== 'undefined' && 'FaceDetector' in window) {
+      try {
+        const faceDetector = new window.FaceDetector({ fastMode: true, maxDetectedFaces: 3 })
+        const faces = await faceDetector.detect(imageElement)
+        if (faces && faces.length > 0) {
+          faceDetected = true
+        }
+      } catch (fdErr) {
+        console.warn('[VetLink AI] Native FaceDetector check warning:', fdErr)
+      }
+    }
+
+    // 2. Universal Canvas YCbCr + Central Skin Density Analysis
     const canvas = document.createElement('canvas')
     canvas.width = 224
     canvas.height = 224
@@ -211,42 +232,75 @@ function checkHumanSkinGate(imageElement) {
     const totalPx = 224 * 224
 
     let skinCount = 0
+    let centerSkinCount = 0
     let totalErythema = 0
     let highEryCount = 0
-    let gradCount = 0
+    let skinGradCount = 0
+    let totalGradCount = 0
 
-    for (let i = 0; i < d.length; i += 4) {
-      const r = d[i]
-      const g = d[i + 1]
-      const b = d[i + 2]
+    for (let y = 0; y < 224; y++) {
+      for (let x = 0; x < 224; x++) {
+        const i = (y * 224 + x) * 4
+        const r = d[i]
+        const g = d[i + 1]
+        const b = d[i + 2]
 
-      // YCbCr conversion
-      const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b
-      const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b
-      const isSkin = cb >= 77 && cb <= 127 && cr >= 133 && cr <= 173 && r > g && r > (b + 14) && r > 90
-      if (isSkin) skinCount++
+        // Broadened YCbCr human skin spectrum (fair, tan, brown, deep brown)
+        const cb = 128 - 0.168736 * r - 0.331264 * g + 0.5 * b
+        const cr = 128 + 0.5 * r - 0.418688 * g - 0.081312 * b
+        const isSkin = cb >= 70 && cb <= 132 && cr >= 130 && cr <= 180 && r > g && r > (b + 8)
 
-      // Erythema calculation: R - (G + B)/2
-      const ery = r - (g + b) / 2
-      totalErythema += ery
-      if (ery > 45) highEryCount++
+        if (isSkin) {
+          skinCount++
+          // Central 112x112 facial/skin box (rows 56 to 168, cols 56 to 168)
+          if (x >= 56 && x < 168 && y >= 56 && y < 168) {
+            centerSkinCount++
+          }
+        }
 
-      // Horizontal edge gradient across red channel
-      if ((i / 4) % 224 < 223) {
-        const nextR = d[i + 4]
-        if (Math.abs(nextR - r) > 9) gradCount++
+        // Erythema calculation: R - (G + B)/2
+        const ery = r - (g + b) / 2
+        totalErythema += ery
+        if (ery > 45) highEryCount++
+
+        // Edge gradient across red channel
+        if (x < 223) {
+          const nextR = d[i + 4]
+          const isEdge = Math.abs(nextR - r) > 9
+          if (isEdge) {
+            totalGradCount++
+            if (isSkin) skinGradCount++
+          }
+        }
       }
     }
 
-    const meanEry = totalErythema / totalPx
+    const centerPx = 112 * 112
+    const centerSkinRatio = centerSkinCount / centerPx
     const humanRatio = skinCount / totalPx
     const highEryPct = highEryCount / totalPx
-    const furDensity = gradCount / (224 * 223)
+    const meanEry = totalErythema / totalPx
+    const furDensity = totalGradCount / (224 * 223)
+    const skinFurDensity = skinCount > 0 ? (skinGradCount / skinCount) : 0
 
-    const isHuman = (humanRatio >= 0.28 && furDensity < 0.22 && highEryPct < 0.06) ||
-                    (humanRatio >= 0.50 && furDensity < 0.25 && highEryPct < 0.08)
+    // Decision Logic:
+    // A: Native FaceDetector confirmed face + central skin presence
+    if (faceDetected && centerSkinRatio >= 0.25) {
+      return { isHuman: true, detected: 'Human Face Detected', centerSkinRatio, skinFurDensity, furDensity, highEryPct, meanEry }
+    }
 
-    return { isHuman, humanRatio, furDensity, highEryPct, meanEry }
+    // B: High central human skin ratio (>= 0.35) with smooth skin texture (skinFurDensity < 0.20)
+    // (Excludes hair bangs / eyelashes and accounts for eyes/mouth inside 112x112 box)
+    if (centerSkinRatio >= 0.35 && skinFurDensity < 0.20) {
+      return { isHuman: true, detected: 'Human Face / Cutaneous Subject', centerSkinRatio, skinFurDensity, furDensity, highEryPct, meanEry }
+    }
+
+    // C: Dominant total human skin ratio (>= 0.50) with low fur density
+    if (humanRatio >= 0.50 && skinFurDensity < 0.18) {
+      return { isHuman: true, detected: 'Human Cutaneous Subject', centerSkinRatio, skinFurDensity, furDensity, highEryPct, meanEry }
+    }
+
+    return { isHuman: false, humanRatio, centerSkinRatio, skinFurDensity, furDensity, highEryPct, meanEry }
   } catch (err) {
     console.warn('[VetLink AI] Human skin gate evaluation error:', err)
     return { isHuman: false, meanEry: 0, highEryPct: 0 }
@@ -428,6 +482,199 @@ function extractFloat32Pixels(imageElement) {
   return rgbFloats
 }
 
+/**
+ * Objective 1.4 Diagnostic Test Mapping & Differential Database.
+ * When confidence is < 60% or atypical lesion morphology is detected,
+ * maps observed visual cues and clinician symptoms to confirmatory secondary diagnostics.
+ */
+export const DIAGNOSTIC_WORKUP_RULES = {
+  DRY_SCALY_ALOPECIA: {
+    id: 'DRY_SCALY_ALOPECIA',
+    visualCue: 'Dry, Scaly, or Alopecic Plaque',
+    differentials: {
+      Canine: ['Dermatophytosis (Microsporum canis)', 'Seborrheic Dermatitis', 'Focal Demodicosis'],
+      Feline: ['Feline Dermatophytosis (M. canis)', 'Demodex cati', 'Psychogenic Barbering Alopecia'],
+      Avian:  ['Psittacine Beak and Feather Disease (PBFD)', 'Feather Plucking / Follicular Dysplasia'],
+      Rabbit: ['Trichophyton mentagrophytes (Dermatophytosis)', 'Cheyletiellosis (Walking Dandruff)'],
+    },
+    tests: [
+      { name: "Wood's Lamp Examination", reason: 'Evaluate pteridine fluorescence for Microsporum canis.' },
+      { name: 'Fungal DTM Culture', reason: 'Confirmatory dermatophyte growth and rapid alkaline red color change.' },
+      { name: 'Trichogram & Feather Pulp Cytology', reason: 'Microscopic inspection of hair shaft fungal spores/hyphae or ectoparasites.' },
+    ],
+  },
+  CRUSTY_PRURITIC: {
+    id: 'CRUSTY_PRURITIC',
+    visualCue: 'Crusty, Thickened, or Pruritic Skin',
+    differentials: {
+      Canine: ['Sarcoptic Mange (Scabies)', 'Flea Allergy Dermatitis (FAD)', 'Demodicosis'],
+      Feline: ['Notoedric Mange (Notoedres cati)', 'Flea Bite Hypersensitivity', 'Otodectic Acariasis'],
+      Avian:  ['Scaly Face / Scaly Leg Mite (Knemidocoptes pilae)', 'Bacterial Encrustation'],
+      Rabbit: ['Psoroptes cuniculi (Ear Canker Mite)', 'Sarcoptic Mange'],
+    },
+    tests: [
+      { name: 'Deep & Superficial Skin Scraping', reason: 'Mineral oil mount microscopy to detect burrowing and surface mite species.' },
+      { name: 'Flea Combing & Surface Examination', reason: 'Rule out flea dirt, live ectoparasites, and flea bite hypersensitivity.' },
+      { name: 'Otic Swab Microscopy', reason: 'Examine ear canal crusts for acariasis or secondary bacterial/yeast co-infection.' },
+    ],
+  },
+  MOIST_MALODOROUS_FOLD: {
+    id: 'MOIST_MALODOROUS_FOLD',
+    visualCue: 'Moist, Greasy, or Malodorous Fold',
+    differentials: {
+      Canine: ['Acute Moist Dermatitis (Hot Spot)', 'Malassezia Yeast Dermatitis', 'Superficial Bacterial Intertrigo'],
+      Feline: ['Facial Fold Intertrigo', 'Feline Acne with Secondary Infection', 'Superficial Pyoderma'],
+      Avian:  ['Superficial Bacterial Folliculitis', 'Necrotizing Vent Intertrigo'],
+      Rabbit: ['Moist Dewlap Dermatitis', 'Pseudomonas Blue Fur Disease', 'Cutaneous Candidiasis'],
+    },
+    tests: [
+      { name: 'Adhesive Tape Strip Cytology', reason: 'Diff-Quik stained impression to quantify Malassezia yeast and cocci.' },
+      { name: 'Direct Impression Smear Cytology', reason: 'Evaluate inflammatory infiltrates (degenerate neutrophils, phagocytosed bacteria).' },
+      { name: 'Topical Aerobic Culture & Sensitivity', reason: 'Identify specific bacterial pathogens and determine targeted antimicrobial susceptibility.' },
+    ],
+  },
+  OPEN_LACERATION_TRAUMA: {
+    id: 'OPEN_LACERATION_TRAUMA',
+    visualCue: 'Deep Open Laceration / Ulcer / Footpad Eschar / Cutaneous Mass',
+    differentials: {
+      Canine: ['Traumatic Laceration / Bite Wound Cavity', 'Cutaneous Ulceration', 'Infiltrative Subcutaneous Mass'],
+      Feline: ['Deep Cat Fight Abscess / Cavitary Laceration', 'Indolent Eosinophilic Ulcer', 'Cutaneous Mast Cell Lesion'],
+      Avian:  ['Pododermatitis (Bumblefoot, Grades 3-5)', 'Traumatic Keel Laceration'],
+      Rabbit: ['Severe Ulcerative Sore Hock (Pododermatitis)', 'Subcutaneous Caseous Abscess'],
+    },
+    tests: [
+      { name: 'Physical Wound Exploration & Sterile Surgical Lavage', reason: 'Inspect tissue depth, fascial planes, devitalized tissue, and foreign bodies under aseptic conditions.' },
+      { name: 'Fine-Needle Aspiration (FNA) Cytology', reason: 'Differentiate inflammatory wound cavity from cystic lesion or cutaneous neoplasia.' },
+      { name: 'Tissue Aerobic & Anaerobic Culture & Sensitivity', reason: 'Isolate deep opportunistic tissue pathogens and guide systemic antibiotic therapy.' },
+    ],
+  },
+}
+
+/**
+ * Deterministic Zero-Dependency Out-of-Scope (OOD) & Objective 1.4 Assessment Module.
+ * Preserves 97.33% model weights while preventing overconfidence on open trauma/lacerations.
+ */
+export function evaluateOutOfScopeCondition({
+  rgbFloats,
+  topLabel = '',
+  topConf = 0.0,
+  candidateScores = {},
+  species = 'Canine',
+  selectedSymptoms = [],
+}) {
+  const spNorm = (species || 'Canine').toString().trim().toLowerCase()
+  let speciesKey = 'Canine'
+  if (spNorm.includes('fel') || spNorm.includes('cat') || spNorm.includes('pusa')) speciesKey = 'Feline'
+  else if (spNorm.includes('avi') || spNorm.includes('bird') || spNorm.includes('ibon')) speciesKey = 'Avian'
+  else if (spNorm.includes('rab') || spNorm.includes('kuneho')) speciesKey = 'Rabbit'
+
+  // 1. Extreme Non-Trained Biophysical Cavities: Dense, deep-crimson hemorrhagic tissue
+  let hemorrhagicCount = 0
+  if (rgbFloats && rgbFloats.length >= 224 * 224 * 3) {
+    const totalPx = 224 * 224
+    for (let i = 0; i < totalPx * 3; i += 3) {
+      const r = rgbFloats[i]
+      const g = rgbFloats[i + 1]
+      const b = rgbFloats[i + 2]
+      if (r > 130 && r > g * 2.2 && r > b * 2.2) {
+        hemorrhagicCount++
+      }
+    }
+  }
+  const hemorrhagicRatio = hemorrhagicCount / (224 * 224)
+  const isExtremeHemorrhagic = hemorrhagicRatio >= 0.035
+
+  // 2. High Softmax Uncertainty & Split Predictions
+  const scores = Object.values(candidateScores)
+  const sumScore = scores.reduce((a, b) => a + b, 0) || 1.0
+  const probs = scores.map((s) => s / sumScore).filter((p) => p > 0.0001)
+  const K = probs.length
+  let entropy = 0
+  for (const p of probs) {
+    entropy -= p * Math.log(p)
+  }
+  const maxEntropy = K > 1 ? Math.log(K) : 1
+  const normalizedEntropy = K > 1 ? entropy / maxEntropy : 0
+
+  const sortedProbs = [...probs].sort((a, b) => b - a)
+  const margin = sortedProbs.length > 1 ? sortedProbs[0] - sortedProbs[1] : 1.0
+  const isHighUncertainty = normalizedEntropy > 0.85 || (margin < 0.15 && topConf < 0.75)
+
+  // 3. Clinician Contradiction Check
+  let isSymptomMismatch = false
+  if (selectedSymptoms && selectedSymptoms.length > 0) {
+    const isHealthyTop = topLabel.toLowerCase().includes('healthy')
+    const hasPathology = selectedSymptoms.some((s) =>
+      ['SYM-EXUDATE', 'SYM-PUSTULES', 'SYM-LICHEN', 'SYM-PRURITUS', 'SYM-ODOR'].includes(s)
+    )
+    if (isHealthyTop && hasPathology) {
+      isSymptomMismatch = true
+    } else if (topLabel.toLowerCase().includes('ringworm') && selectedSymptoms.includes('SYM-ODOR')) {
+      isSymptomMismatch = true
+    }
+  }
+
+  // 4. Strict High-Confidence Pass-Through Guardrail:
+  // Protects textbook cases of our 11 trained classes (>= 75% with low softmax entropy)
+  // from false OOD triggers unless an extreme open-wound cavity or contradictory symptom is detected.
+  const isTextbookClass = topConf >= 0.75 && !isHighUncertainty && !isSymptomMismatch && !isExtremeHemorrhagic
+
+  let isOutOfScope = false
+  let triggerReason = null
+
+  if (isExtremeHemorrhagic) {
+    isOutOfScope = true
+    triggerReason = 'EXTREME_HEMORRHAGIC_CAVITY'
+  } else if (isSymptomMismatch) {
+    isOutOfScope = true
+    triggerReason = 'CLINICIAN_SYMPTOM_MISMATCH'
+  } else if (!isTextbookClass && (isHighUncertainty || topConf < 0.60)) {
+    isOutOfScope = true
+    triggerReason = isHighUncertainty ? 'HIGH_ENTROPY_SPLIT' : 'SUB_THRESHOLD_CONFIDENCE'
+  }
+
+  // Morphology-to-Diagnostic-Test Selection
+  let ruleKey = 'DRY_SCALY_ALOPECIA'
+  if (isExtremeHemorrhagic) {
+    ruleKey = 'OPEN_LACERATION_TRAUMA'
+  } else if (
+    topLabel.toLowerCase().includes('hot') ||
+    topLabel.toLowerCase().includes('pyoderma') ||
+    selectedSymptoms.includes('SYM-EXUDATE') ||
+    selectedSymptoms.includes('SYM-ODOR')
+  ) {
+    ruleKey = 'MOIST_MALODOROUS_FOLD'
+  } else if (
+    topLabel.toLowerCase().includes('mange') ||
+    topLabel.toLowerCase().includes('flea') ||
+    topLabel.toLowerCase().includes('mite') ||
+    selectedSymptoms.includes('SYM-SCALING') ||
+    selectedSymptoms.includes('SYM-LICHEN') ||
+    selectedSymptoms.includes('SYM-PRURITUS')
+  ) {
+    ruleKey = 'CRUSTY_PRURITIC'
+  } else {
+    ruleKey = 'DRY_SCALY_ALOPECIA'
+  }
+
+  const selectedRule = DIAGNOSTIC_WORKUP_RULES[ruleKey]
+  const differentials = selectedRule.differentials[speciesKey] || selectedRule.differentials['Canine']
+  const clampedConfidence = isOutOfScope ? Math.min(topConf, 0.58) : topConf
+
+  return {
+    isOutOfScope,
+    triggerReason,
+    originalConfidence: topConf,
+    clampedConfidence,
+    morphology: selectedRule.visualCue,
+    ruleKey,
+    differentials,
+    recommendedTests: selectedRule.tests,
+    hemorrhagicRatio: Math.round(hemorrhagicRatio * 1000) / 1000,
+    normalizedEntropy: Math.round(normalizedEntropy * 1000) / 1000,
+  }
+}
+
 import { generateGradCAM } from './gradcam'
 
 /**
@@ -486,6 +733,19 @@ function imageToBase64(imageElement) {
 export async function predict(imageElement, species = 'Canine') {
   console.time('[VetLink AI] Inference Time')
 
+  // 0. Pre-Flight Client-Side Human Face & Skin Rejection Gate (Strict Gate-First)
+  const earlySkinCheck = await checkHumanSkinGate(imageElement)
+  if (earlySkinCheck.isHuman) {
+    console.timeEnd('[VetLink AI] Inference Time')
+    return {
+      rejected: true,
+      reason: 'HUMAN_SUBJECT',
+      detected: earlySkinCheck.detected || 'Human Face / Cutaneous Subject',
+      message: 'Human face or human skin detected. VetLink only analyzes real animal skin and fur conditions (Dog, Cat, Bird, Rabbit). Please upload or capture a photo of an actual animal.',
+      instructions: 'Please take or upload a photo showing an actual animal patient with a visible skin or fur condition.',
+    }
+  }
+
   // 1. PRIMARY PATH: High-speed native TFLite inference via backend
   const b64 = imageToBase64(imageElement)
   if (b64) {
@@ -535,6 +795,8 @@ export async function predict(imageElement, species = 'Canine') {
             top3:         data.top3 || [],
             gradcam,
             engine:       'backend',
+            isOutOfScope: Boolean(data.isOutOfScope),
+            outOfScopeAssessment: data.outOfScopeAssessment || null,
             biophysicalTelemetry: data.biophysical_telemetry || null,
           }
         }
@@ -558,13 +820,14 @@ export async function predict(imageElement, species = 'Canine') {
   }
 
   // 2a. Fast Edge Biophysical Human Skin / Face Rejection Gate
-  const skinCheck = checkHumanSkinGate(imageElement)
+  const skinCheck = earlySkinCheck
   if (skinCheck.isHuman) {
     return {
       rejected: true,
       reason: 'HUMAN_SUBJECT',
-      detected: 'Human Face / Cutaneous Subject',
-      message: 'The submitted image exhibits human facial or cutaneous characteristics. VetLink AI is strictly calibrated for veterinary companion animals (Canine, Feline, Avian, Rabbit). Human dermatological screening is strictly prohibited under clinical safety protocols.',
+      detected: skinCheck.detected || 'Human Face / Cutaneous Subject',
+      message: 'Human face or human skin detected. VetLink only analyzes real animal skin and fur conditions (Dog, Cat, Bird, Rabbit). Please upload or capture a photo of an actual animal.',
+      instructions: 'Please take or upload a photo showing an actual animal patient with a visible skin or fur condition.',
     }
   }
 
@@ -574,10 +837,10 @@ export async function predict(imageElement, species = 'Canine') {
   let inputTensor = null
   let outputTensor = null
   let probabilities = []
+  const rgbFloats = extractFloat32Pixels(imageElement)
 
   try {
     if (onnxModel && window.ort) {
-      const rgbFloats = extractFloat32Pixels(imageElement)
       const ort = window.ort
       const inTensor = new ort.Tensor('float32', rgbFloats, [1, 224, 224, 3])
       const res = await onnxModel.run({ [onnxModel.inputNames[0]]: inTensor })
@@ -748,6 +1011,26 @@ export async function predict(imageElement, species = 'Canine') {
       confidence: item.confidence,
     }))
 
+    // 2c. Multi-Species Out-of-Scope (OOD) & Objective 1.4 Diagnostic Test Engine
+    const outOfScopeResult = evaluateOutOfScopeCondition({
+      rgbFloats,
+      topLabel,
+      topConf,
+      candidateScores,
+      species,
+      selectedSymptoms: [],
+    })
+
+    let finalConf = topConf
+    let finalTop3 = top3
+    if (outOfScopeResult.isOutOfScope) {
+      finalConf = outOfScopeResult.clampedConfidence
+      finalTop3 = top3.map((item, idx) => ({
+        ...item,
+        confidence: idx === 0 ? finalConf : Math.min(item.confidence, finalConf * 0.85),
+      }))
+    }
+
     // Immediate cleanup of input tensor to preserve mobile WebAssembly heap memory
     if (inputTensor && typeof inputTensor.dispose === 'function') {
       try { inputTensor.dispose() } catch (_) {}
@@ -759,14 +1042,17 @@ export async function predict(imageElement, species = 'Canine') {
     return {
       label: topLabel,
       displayLabel: CLASS_DISPLAY[topLabel] || topLabel,
-      confidence: topConf,
-      percent: `${(topConf * 100).toFixed(1)}%`,
+      confidence: finalConf,
+      percent: `${(finalConf * 100).toFixed(1)}%`,
       description: CLASS_DESCRIPTIONS[topLabel] || '',
-      top3,
+      top3: finalTop3,
       gradcam,
       engine: 'wasm',
+      isOutOfScope: outOfScopeResult.isOutOfScope,
+      outOfScopeAssessment: outOfScopeResult,
       biophysicalTelemetry: {
         highEryPct: coatAudit.highEryPct,
+        hemorrhagicRatio: outOfScopeResult.hemorrhagicRatio,
         furDensity: coatAudit.furDensity,
         centerFurDensity: coatAudit.centerFurDensity,
         outerFurDensity: coatAudit.outerFurDensity,
@@ -1105,5 +1391,10 @@ export function getSuggestedSymptomsForDisease(diseaseLabel) {
     }
   }
   return []
+}
+
+if (typeof window !== 'undefined') {
+  window.__vetlink_predict = predict
+  window.__vetlink_evaluateOutOfScopeCondition = evaluateOutOfScopeCondition
 }
 

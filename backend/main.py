@@ -1842,6 +1842,7 @@ CLASS_DISPLAY_NAMES = {
 class AIPredictionRequest(BaseModel):
     image: str
     species: Optional[str] = "Canine"
+    selected_symptoms: Optional[List[str]] = []
 
 _animal_verifier = None
 
@@ -1959,6 +1960,170 @@ def audit_intact_coat_plaque(img_arr):
         "crust_ratio": crust_ratio
     }
 
+# Objective 1.4 Diagnostic Test Mapping & Differential Database (FastAPI Online Engine)
+DIAGNOSTIC_WORKUP_RULES = {
+    "DRY_SCALY_ALOPECIA": {
+        "id": "DRY_SCALY_ALOPECIA",
+        "visual_cue": "Dry, Scaly, or Alopecic Plaque",
+        "differentials": {
+            "Canine": ["Dermatophytosis (Microsporum canis)", "Seborrheic Dermatitis", "Focal Demodicosis"],
+            "Feline": ["Feline Dermatophytosis (M. canis)", "Demodex cati", "Psychogenic Barbering Alopecia"],
+            "Avian":  ["Psittacine Beak and Feather Disease (PBFD)", "Feather Plucking / Follicular Dysplasia"],
+            "Rabbit": ["Trichophyton mentagrophytes (Dermatophytosis)", "Cheyletiellosis (Walking Dandruff)"],
+        },
+        "tests": [
+            {"name": "Wood's Lamp Examination", "reason": "Evaluate pteridine fluorescence for Microsporum canis."},
+            {"name": "Fungal DTM Culture", "reason": "Confirmatory dermatophyte growth and rapid alkaline red color change."},
+            {"name": "Trichogram & Feather Pulp Cytology", "reason": "Microscopic inspection of hair shaft fungal spores/hyphae or ectoparasites."},
+        ],
+    },
+    "CRUSTY_PRURITIC": {
+        "id": "CRUSTY_PRURITIC",
+        "visual_cue": "Crusty, Thickened, or Pruritic Skin",
+        "differentials": {
+            "Canine": ["Sarcoptic Mange (Scabies)", "Flea Allergy Dermatitis (FAD)", "Demodicosis"],
+            "Feline": ["Notoedric Mange (Notoedres cati)", "Flea Bite Hypersensitivity", "Otodectic Acariasis"],
+            "Avian":  ["Scaly Face / Scaly Leg Mite (Knemidocoptes pilae)", "Bacterial Encrustation"],
+            "Rabbit": ["Psoroptes cuniculi (Ear Canker Mite)", "Sarcoptic Mange"],
+        },
+        "tests": [
+            {"name": "Deep & Superficial Skin Scraping", "reason": "Mineral oil mount microscopy to detect burrowing and surface mite species."},
+            {"name": "Flea Combing & Surface Examination", "reason": "Rule out flea dirt, live ectoparasites, and flea bite hypersensitivity."},
+            {"name": "Otic Swab Microscopy", "reason": "Examine ear canal crusts for acariasis or secondary bacterial/yeast co-infection."},
+        ],
+    },
+    "MOIST_MALODOROUS_FOLD": {
+        "id": "MOIST_MALODOROUS_FOLD",
+        "visual_cue": "Moist, Greasy, or Malodorous Fold",
+        "differentials": {
+            "Canine": ["Acute Moist Dermatitis (Hot Spot)", "Malassezia Yeast Dermatitis", "Superficial Bacterial Intertrigo"],
+            "Feline": ["Facial Fold Intertrigo", "Feline Acne with Secondary Infection", "Superficial Pyoderma"],
+            "Avian":  ["Superficial Bacterial Folliculitis", "Necrotizing Vent Intertrigo"],
+            "Rabbit": ["Moist Dewlap Dermatitis", "Pseudomonas Blue Fur Disease", "Cutaneous Candidiasis"],
+        },
+        "tests": [
+            {"name": "Adhesive Tape Strip Cytology", "reason": "Diff-Quik stained impression to quantify Malassezia yeast and cocci."},
+            {"name": "Direct Impression Smear Cytology", "reason": "Evaluate inflammatory infiltrates (degenerate neutrophils, phagocytosed bacteria)."},
+            {"name": "Topical Aerobic Culture & Sensitivity", "reason": "Identify specific bacterial pathogens and determine targeted antimicrobial susceptibility."},
+        ],
+    },
+    "OPEN_LACERATION_TRAUMA": {
+        "id": "OPEN_LACERATION_TRAUMA",
+        "visual_cue": "Deep Open Laceration / Ulcer / Footpad Eschar / Cutaneous Mass",
+        "differentials": {
+            "Canine": ["Traumatic Laceration / Bite Wound Cavity", "Cutaneous Ulceration", "Infiltrative Subcutaneous Mass"],
+            "Feline": ["Deep Cat Fight Abscess / Cavitary Laceration", "Indolent Eosinophilic Ulcer", "Cutaneous Mast Cell Lesion"],
+            "Avian":  ["Pododermatitis (Bumblefoot, Grades 3-5)", "Traumatic Keel Laceration"],
+            "Rabbit": ["Severe Ulcerative Sore Hock (Pododermatitis)", "Subcutaneous Caseous Abscess"],
+        },
+        "tests": [
+            {"name": "Physical Wound Exploration & Sterile Surgical Lavage", "reason": "Inspect tissue depth, fascial planes, devitalized tissue, and foreign bodies under aseptic conditions."},
+            {"name": "Fine-Needle Aspiration (FNA) Cytology", "reason": "Differentiate inflammatory wound cavity from cystic lesion or cutaneous neoplasia."},
+            {"name": "Tissue Aerobic & Anaerobic Culture & Sensitivity", "reason": "Isolate deep opportunistic tissue pathogens and guide systemic antibiotic therapy."},
+        ],
+    },
+}
+
+def evaluate_out_of_scope_condition(
+    img_arr: "np.ndarray",
+    top_label: str,
+    top_conf: float,
+    candidate_scores: dict,
+    species: str = "Canine",
+    selected_symptoms: list = None
+):
+    import math
+    import numpy as np
+
+    if selected_symptoms is None:
+        selected_symptoms = []
+
+    sp_norm = str(species or "Canine").strip().lower()
+    species_key = "Canine"
+    if "fel" in sp_norm or "cat" in sp_norm or "pusa" in sp_norm:
+        species_key = "Feline"
+    elif "avi" in sp_norm or "bird" in sp_norm or "ibon" in sp_norm:
+        species_key = "Avian"
+    elif "rab" in sp_norm or "kuneho" in sp_norm:
+        species_key = "Rabbit"
+
+    # 1. Extreme Non-Trained Biophysical Cavities: Dense, deep-crimson hemorrhagic tissue
+    r_chan = img_arr[:, :, 0]
+    g_chan = img_arr[:, :, 1]
+    b_chan = img_arr[:, :, 2]
+    hemorrhagic_mask = (r_chan > 130) & (r_chan > g_chan * 2.2) & (r_chan > b_chan * 2.2)
+    hemorrhagic_ratio = float(np.mean(hemorrhagic_mask))
+    is_extreme_hemorrhagic = bool(hemorrhagic_ratio >= 0.035)
+
+    # 2. High Softmax Uncertainty & Split Predictions
+    scores = [v for v in candidate_scores.values() if v > 0.0001]
+    tot = sum(scores) or 1.0
+    probs = [s / tot for s in scores]
+    K = len(probs)
+    if K > 1:
+        entropy = -sum(p * math.log(p) for p in probs)
+        max_entropy = math.log(K)
+        normalized_entropy = entropy / max_entropy
+    else:
+        normalized_entropy = 0.0
+
+    sorted_probs = sorted(probs, reverse=True)
+    margin = (sorted_probs[0] - sorted_probs[1]) if len(sorted_probs) > 1 else 1.0
+    is_high_uncertainty = (normalized_entropy > 0.85) or (margin < 0.15 and top_conf < 0.75)
+
+    # 3. Clinician Contradiction Check
+    is_symptom_mismatch = False
+    if selected_symptoms:
+        is_healthy_top = "healthy" in top_label.lower()
+        has_pathology = any(s in ["SYM-EXUDATE", "SYM-PUSTULES", "SYM-LICHEN", "SYM-PRURITUS", "SYM-ODOR"] for s in selected_symptoms)
+        if is_healthy_top and has_pathology:
+            is_symptom_mismatch = True
+        elif "ringworm" in top_label.lower() and "SYM-ODOR" in selected_symptoms:
+            is_symptom_mismatch = True
+
+    # 4. Strict High-Confidence Pass-Through Guardrail
+    is_textbook_class = (top_conf >= 0.75) and not is_high_uncertainty and not is_symptom_mismatch and not is_extreme_hemorrhagic
+
+    is_out_of_scope = False
+    trigger_reason = None
+
+    if is_extreme_hemorrhagic:
+        is_out_of_scope = True
+        trigger_reason = "EXTREME_HEMORRHAGIC_CAVITY"
+    elif is_symptom_mismatch:
+        is_out_of_scope = True
+        trigger_reason = "CLINICIAN_SYMPTOM_MISMATCH"
+    elif not is_textbook_class and (is_high_uncertainty or top_conf < 0.60):
+        is_out_of_scope = True
+        trigger_reason = "HIGH_ENTROPY_SPLIT" if is_high_uncertainty else "SUB_THRESHOLD_CONFIDENCE"
+
+    # Morphology Selection
+    if is_extreme_hemorrhagic:
+        rule_key = "OPEN_LACERATION_TRAUMA"
+    elif "hot" in top_label.lower() or "pyoderma" in top_label.lower() or any(s in ["SYM-EXUDATE", "SYM-ODOR"] for s in selected_symptoms):
+        rule_key = "MOIST_MALODOROUS_FOLD"
+    elif any(k in top_label.lower() for k in ["mange", "flea", "mite"]) or any(s in ["SYM-SCALING", "SYM-LICHEN", "SYM-PRURITUS"] for s in selected_symptoms):
+        rule_key = "CRUSTY_PRURITIC"
+    else:
+        rule_key = "DRY_SCALY_ALOPECIA"
+
+    rule = DIAGNOSTIC_WORKUP_RULES[rule_key]
+    differentials = rule["differentials"].get(species_key, rule["differentials"]["Canine"])
+    clamped_confidence = min(top_conf, 0.58) if is_out_of_scope else top_conf
+
+    return {
+        "is_out_of_scope": is_out_of_scope,
+        "trigger_reason": trigger_reason,
+        "original_confidence": round(float(top_conf), 4),
+        "clamped_confidence": round(float(clamped_confidence), 4),
+        "morphology": rule["visual_cue"],
+        "rule_key": rule_key,
+        "differentials": differentials,
+        "recommended_tests": rule["tests"],
+        "hemorrhagic_ratio": round(float(hemorrhagic_ratio), 4),
+        "normalized_entropy": round(float(normalized_entropy), 4)
+    }
+
 @app.post("/api/ai/predict")
 def predict_disease(req: AIPredictionRequest):
     try:
@@ -1980,6 +2145,66 @@ def predict_disease(req: AIPredictionRequest):
         else:
             crop_sq = orig_img
         img_arr = np.array(crop_sq.resize((224, 224)), dtype=np.float32)
+
+        # ── Step 0: Human Face & Cutaneous Subject Rejection Gate (Strict Gate-First) ──
+        # Evaluates whether the image contains a human face or human cutaneous subject.
+        # Runs BEFORE MobileNetV3 and BEFORE healthy coat re-calibration.
+        r_chan = img_arr[:, :, 0]
+        g_chan = img_arr[:, :, 1]
+        b_chan = img_arr[:, :, 2]
+        cb = 128 - 0.168736 * r_chan - 0.331264 * g_chan + 0.5 * b_chan
+        cr = 128 + 0.5 * r_chan - 0.418688 * g_chan - 0.081312 * b_chan
+        is_skin = (cb >= 70) & (cb <= 132) & (cr >= 130) & (cr <= 180) & (r_chan > g_chan) & (r_chan > b_chan + 8)
+
+        center_skin = float(np.mean(is_skin[56:168, 56:168]))
+        total_skin = float(np.mean(is_skin))
+
+        dx = np.abs(r_chan[:, 1:] - r_chan[:, :-1])
+        is_skin_slice = is_skin[:, :-1]
+        skin_px = np.sum(is_skin_slice)
+        skin_fur_density = float(np.sum((dx > 9) & is_skin_slice) / skin_px) if skin_px > 0 else 0.0
+
+        # Check OpenCV Haar cascade face detection if cv2 is installed
+        faces_detected = 0
+        try:
+            import cv2
+            face_cascade = cv2.CascadeClassifier(cv2.data.haarcascades + 'haarcascade_frontalface_default.xml')
+            gray = cv2.cvtColor(np.array(crop_sq), cv2.COLOR_RGB2GRAY)
+            faces = face_cascade.detectMultiScale(gray, scaleFactor=1.1, minNeighbors=7, minSize=(60, 60))
+            faces_detected = len(faces)
+        except Exception:
+            faces_detected = 0
+
+        is_human_subject = False
+        human_detected_label = "Human Face / Cutaneous Subject"
+        if faces_detected > 0 and center_skin >= 0.25:
+            is_human_subject = True
+            human_detected_label = "Human Face Detected"
+        elif center_skin >= 0.35 and skin_fur_density < 0.20:
+            # Check ImageNet verifier to confirm non-animal before final decision
+            verifier, animal_mask = get_animal_verifier()
+            if verifier and animal_mask is not None:
+                try:
+                    import tensorflow as tf
+                    arr_norm = tf.keras.applications.mobilenet_v3.preprocess_input(img_arr.copy())
+                    v_preds = verifier.predict(np.expand_dims(arr_norm, axis=0), verbose=0)
+                    p_animal = float(np.sum(v_preds[0, animal_mask]))
+                    if p_animal < 0.25:
+                        is_human_subject = True
+                        human_detected_label = "Human Face / Cutaneous Subject"
+                except Exception:
+                    is_human_subject = True
+            else:
+                is_human_subject = True
+
+        if is_human_subject:
+            return {
+                "rejected": True,
+                "reason": "HUMAN_SUBJECT",
+                "detected": human_detected_label,
+                "message": "Human face or human skin detected. VetLink only analyzes real animal skin and fur conditions (Dog, Cat, Bird, Rabbit). Please upload or capture a photo of an actual animal.",
+                "instructions": "Take a close-up photo of the animal lesion or fur."
+            }
 
         interpreter, labels = get_ai_model()
         inp_idx = interpreter.get_input_details()[0]["index"]
@@ -2032,37 +2257,6 @@ def predict_disease(req: AIPredictionRequest):
             for k in other_keys:
                 filtered[k] = filtered[k] * scale
             filtered[healthy_target] = dyn_h
-
-        # 2c. Human Skin Rejection Gate
-        r_chan = img_arr[:, :, 0]
-        g_chan = img_arr[:, :, 1]
-        b_chan = img_arr[:, :, 2]
-        cb = 128 - 0.168736 * r_chan - 0.331264 * g_chan + 0.5 * b_chan
-        cr = 128 + 0.5 * r_chan - 0.418688 * g_chan - 0.081312 * b_chan
-        is_skin = (cb >= 77) & (cb <= 127) & (cr >= 133) & (cr <= 173) & (r_chan > g_chan) & (r_chan > b_chan + 14) & (r_chan > 90)
-        dx = np.abs(r_chan[:, 1:] - r_chan[:, :-1])
-        fur_density = float(np.mean(dx > 9))
-        human_ratio = float(np.mean(is_skin))
-
-        # Check active inflammatory erythema (lesions)
-        ery = r_chan - (g_chan + b_chan) / 2.0
-        mean_ery = float(np.mean(ery))
-        high_ery_pct = float(np.mean(ery > 45))
-
-        # Human Face & Cutaneous Subject Gate:
-        # Differentiates human skin / face from animal lesions and fur.
-        # Animal lesions exhibit high inflammatory erythema (high_ery_pct >= 0.08) or dense fur margins.
-        # Human skin (whether limbs or human faces with hair/eyes) exhibits low erythema (high_ery_pct < 0.06).
-        is_human_subject = (human_ratio >= 0.28 and fur_density < 0.22 and high_ery_pct < 0.06) or \
-                           (human_ratio >= 0.50 and fur_density < 0.25 and high_ery_pct < 0.08)
-
-        if is_human_subject:
-            return {
-                "rejected": True,
-                "reason": "HUMAN_SUBJECT",
-                "detected": "Human Face / Cutaneous Subject",
-                "message": "The submitted image exhibits human facial or cutaneous characteristics. VetLink AI is strictly calibrated for veterinary companion animals (Canine, Feline, Avian, Rabbit). Human dermatological screening is strictly prohibited under clinical safety protocols."
-            }
 
         # 2c. Biophysical Surface Telemetry (Erythema metrics for clinical telemetry)
         ery = r_chan - (g_chan + b_chan) / 2.0
@@ -2126,21 +2320,50 @@ def predict_disease(req: AIPredictionRequest):
             except Exception as v_err:
                 print(f"[WARN] Animal verifier check error: {v_err}")
 
+        # 4. Out-of-Scope (OOD) & Objective 1.4 Diagnostic Test Engine
+        ood_res = evaluate_out_of_scope_condition(
+            img_arr=img_arr,
+            top_label=top_label,
+            top_conf=top_conf,
+            candidate_scores=filtered,
+            species=req.species or "Canine",
+            selected_symptoms=getattr(req, "selected_symptoms", []) or []
+        )
+
+        final_conf = ood_res["clamped_confidence"] if ood_res["is_out_of_scope"] else top_conf
         top3 = [
             {
                 "label": lbl,
                 "display": CLASS_DISPLAY_NAMES.get(lbl, lbl),
-                "confidence": conf,
+                "confidence": round(float(final_conf if idx == 0 and ood_res["is_out_of_scope"] else conf), 4),
             }
-            for lbl, conf in normalized[:3]
+            for idx, (lbl, conf) in enumerate(normalized[:3])
         ]
 
         return {
             "label": top_label,
             "displayLabel": CLASS_DISPLAY_NAMES.get(top_label, top_label),
-            "confidence": top_conf,
-            "percent": f"{top_conf * 100:.1f}%",
+            "confidence": round(float(final_conf), 4),
+            "percent": f"{final_conf * 100:.1f}%",
             "top3": top3,
+            "isOutOfScope": ood_res["is_out_of_scope"],
+            "outOfScopeAssessment": {
+                "isOutOfScope": ood_res["is_out_of_scope"],
+                "triggerReason": ood_res["trigger_reason"],
+                "morphology": ood_res["morphology"],
+                "differentials": ood_res["differentials"],
+                "recommendedTests": ood_res["recommended_tests"],
+                "hemorrhagicRatio": ood_res["hemorrhagic_ratio"],
+                "normalizedEntropy": ood_res["normalized_entropy"]
+            },
+            "biophysical_telemetry": {
+                "high_ery_pct": round(high_ery_pct, 4),
+                "mean_ery": round(mean_ery, 2),
+                "hemorrhagic_ratio": ood_res["hemorrhagic_ratio"],
+                "fur_density": coat_audit.get("fur_density", 0.0),
+                "crust_ratio": coat_audit.get("crust_ratio", 0.0),
+                "is_intact_healthy": coat_audit.get("is_intact", False)
+            }
         }
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"AI inference error: {str(e)}")

@@ -8,7 +8,7 @@ import { registerSW } from 'virtual:pwa-register'
 // Automatic Cache & Service Worker Reset:
 // Purges stale Service Workers and outdated CacheStorage buckets on mobile updates
 // while keeping local IndexedDB clinical records completely safe.
-const APP_CACHE_VERSION = 'vetlink-onnx-v2.1'
+const APP_CACHE_VERSION = 'vetlink-onnx-v2.2'
 
 async function enforceFreshOfflineCache() {
   try {

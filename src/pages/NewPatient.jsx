@@ -372,11 +372,11 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
         setUploadProgress(null)
         setUploadStage('')
         setQualityRejection({
-          title: 'Image Rejected: Non-Animal Subject Detected',
+          title: result.reason === 'HUMAN_SUBJECT' ? 'Image Rejected: Human Subject Detected' : 'Image Rejected: Non-Animal Subject Detected',
           reason: result.reason || 'NON_ANIMAL',
           detected: result.detected,
           message: result.message || 'VetLink is trained exclusively on domestic animal dermatological lesions (Canine, Feline, Avian, Rabbit). Non-animal subjects are rejected to prevent diagnostic errors and model overload.',
-          instructions: 'Please take or upload a photo showing an actual animal patient with a visible skin or fur condition.',
+          instructions: result.instructions || 'Please take or upload a photo showing an actual animal patient with a visible skin or fur condition.',
         })
         setIsAnalyzing(false)
         return // HARD STOP - Do not accept non-animal images!
@@ -387,7 +387,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
       setAiResult(result)
 
       // Intelligent Symptom Pre-selection & Lab Test Auto-evaluation
-      if (result.confidence >= 0.60) {
+      if (result.confidence >= 0.60 && !result.isOutOfScope) {
         const primarySymptoms = getSuggestedSymptomsForDisease(result.displayLabel)
         const comorb = checkComorbidity(result.top3)
         const secondarySymptoms = comorb.isComorbid ? getSuggestedSymptomsForDisease(comorb.secondary) : []
@@ -396,10 +396,14 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
         setLabTestRequired(false)
         setLabTestReason('')
       } else {
-        // Low confidence: keep checkboxes blank to avoid cognitive bias
+        // Low confidence or Out-of-Scope: keep checkboxes blank to avoid cognitive bias
         setSelectedSymptoms([])
         setLabTestRequired(true)
-        setLabTestReason('Score below 60% Clinical Protocol Activation Threshold. Confirmatory lab diagnostics (Skin scrape / fungal DTM / tape cytology) recommended.')
+        const oodTests = result.outOfScopeAssessment?.recommendedTests?.map((t) => t.name).join('; ')
+        const oodReason = oodTests
+          ? `Objective 1.4 Confirmatory Workup: ${oodTests}`
+          : 'Score below 60% Clinical Protocol Activation Threshold. Confirmatory lab diagnostics (Skin scrape / fungal DTM / tape cytology) recommended.'
+        setLabTestReason(oodReason)
       }
 
       // Check subclinical early differential
@@ -468,11 +472,11 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
         const result = await predict(imgElement, newSpecies)
         if (result.rejected) {
           setQualityRejection({
-            title: 'Image Rejected: Non-Animal Subject Detected',
+            title: result.reason === 'HUMAN_SUBJECT' ? 'Image Rejected: Human Subject Detected' : 'Image Rejected: Non-Animal Subject Detected',
             reason: result.reason || 'NON_ANIMAL',
             detected: result.detected,
             message: result.message,
-            instructions: 'Please take or upload a photo showing an animal patient.',
+            instructions: result.instructions || 'Please take or upload a photo showing an animal patient.',
           })
           setUploadProgress(null)
     setUploadStage('')
@@ -524,7 +528,7 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
       // 1. Determine clinical status based on lab test and confidence
       const comorb = checkComorbidity(aiResult.top3)
       let assignedStatus = 'Review Results'
-      if (labTestRequired) {
+      if (labTestRequired || aiResult.isOutOfScope || aiResult.confidence < 0.60) {
         assignedStatus = 'Awaiting Lab Test'
       } else if (comorb.isComorbid || aiResult.confidence < 0.80) {
         assignedStatus = 'Needs Vet Review'
@@ -1435,14 +1439,53 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
                         )
                       })()}
 
-                      {/* FR7: 60% Clinical Protocol Activation Threshold (Thesis pp. 11, 41, 46, 56) */}
-                      {aiResult.confidence >= 0.60 ? (
+                      {/* FR7 & Objective 1.4: 60% Clinical Protocol Activation Threshold */}
+                      {(!aiResult.isOutOfScope && aiResult.confidence >= 0.60) ? (
                         <div style={{ marginTop: 6, padding: '5px 8px', background: 'rgba(22, 101, 52, 0.35)', border: '1px solid #16a34a', borderRadius: 4, fontSize: '0.74rem', color: '#86efac', fontFamily: 'sans-serif' }}>
                           Score &ge; 60% Clinical Protocol Activation Threshold: First-line care protocol auto-populated into consultation draft.
                         </div>
                       ) : (
-                        <div style={{ marginTop: 6, padding: '6px 8px', background: 'rgba(180, 83, 9, 0.35)', border: '1px solid #d97706', borderRadius: 4, fontSize: '0.74rem', color: '#fde68a', fontFamily: 'sans-serif' }}>
-                          Score &lt; 60% Clinical Protocol Activation Threshold: Secondary confirmatory laboratory diagnostics (Skin Scraping, Fungal Culture, or Tape Cytology) recommended.
+                        <div style={{ marginTop: 10, padding: '12px 14px', background: 'rgba(180, 83, 9, 0.22)', border: '1px solid #d97706', borderRadius: 8, fontFamily: 'sans-serif' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
+                            <span style={{ fontWeight: 'bold', fontSize: '0.84rem', color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 6 }}>
+                              Recommended Confirmatory Diagnostic Workup (&lt; 60% / Atypical Pattern)
+                            </span>
+                            <span style={{ fontSize: '0.68rem', background: '#d97706', color: '#ffffff', padding: '2px 6px', borderRadius: 4, fontWeight: 700, textTransform: 'uppercase' }}>
+                              Objective 1.4 Protocol
+                            </span>
+                          </div>
+
+                          <div style={{ fontSize: '0.78rem', color: '#fde68a', marginBottom: 6, lineHeight: 1.4 }}>
+                            <strong>Observed Lesion Morphology:</strong> {aiResult.outOfScopeAssessment?.morphology || 'Atypical / Equivocal Lesion Presentation'}
+                          </div>
+
+                          {aiResult.outOfScopeAssessment?.differentials && (
+                            <div style={{ fontSize: '0.75rem', color: '#cbd5e1', marginBottom: 8, lineHeight: 1.4 }}>
+                              <strong style={{ color: '#94a3b8' }}>Suspected Differentials ({species}):</strong>{' '}
+                              {aiResult.outOfScopeAssessment.differentials.join(', ')}
+                            </div>
+                          )}
+
+                          <div style={{ marginTop: 6, borderTop: '1px solid rgba(217, 119, 6, 0.3)', paddingTop: 6 }}>
+                            <span style={{ fontSize: '0.72rem', fontWeight: 700, color: '#fcd34d', textTransform: 'uppercase', letterSpacing: '0.03em' }}>
+                              Recommended Diagnostic Tests:
+                            </span>
+                            <div style={{ marginTop: 4, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                              {(aiResult.outOfScopeAssessment?.recommendedTests || [
+                                { name: "Wood's Lamp Examination / Fungal DTM", reason: 'Rule out dermatophytosis' },
+                                { name: 'Deep & Superficial Skin Scraping', reason: 'Detect ectoparasitic mites under mineral oil' },
+                                { name: 'Adhesive Tape Strip Cytology', reason: 'Evaluate bacterial and yeast colonization' }
+                              ]).map((test, tIdx) => (
+                                <div key={tIdx} style={{ fontSize: '0.74rem', color: '#e2e8f0', paddingLeft: 8, borderLeft: '2px solid #f59e0b' }}>
+                                  <strong style={{ color: '#ffffff' }}>{test.name}:</strong> <span style={{ color: '#94a3b8' }}>{test.reason}</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div style={{ marginTop: 8, padding: '5px 8px', background: 'rgba(0, 0, 0, 0.25)', borderRadius: 4, fontSize: '0.70rem', color: '#fbbf24', fontStyle: 'italic' }}>
+                            Clinical Governance Notice: First-line medication auto-fill is suppressed. Diagnostic tests and Attending Veterinarian examination mandated prior to therapy.
+                          </div>
                         </div>
                       )}
 
