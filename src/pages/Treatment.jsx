@@ -392,12 +392,41 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
   const consultation  = caseData?.consultation
   const aiResult      = caseData?.aiResult
   const [currentOwnerEmail, setCurrentOwnerEmail] = useState(patient?.ownerEmail || '')
-  const doctorName = currentUser?.name ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`) : (caseData?.doctorName || 'Attending Veterinarian')
-  const doctorPrcLicense = (currentUser?.prcLicense || '').trim()
-  const doctorPtrNumber = (currentUser?.ptrNumber || '').trim()
-  const doctorSignatureImage = currentUser?.signatureImage || currentUser?.signature_image || null
-  const hasPrc = Boolean(doctorPrcLicense && doctorPrcLicense !== 'VET-894102')
-  const hasPtr = Boolean(doctorPtrNumber && doctorPtrNumber !== '1948201')
+  const roleStr = String(currentUser?.role || '').toLowerCase().trim()
+  const isStaff = roleStr.includes('staff') || roleStr === 'clinic staff'
+  const isVetAdmin = !isStaff
+
+  const currentDoctorName = currentUser?.name
+    ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`)
+    : 'Attending Veterinarian'
+  const currentDoctorSignature = currentUser?.signatureImage || currentUser?.signature_image || null
+  const currentDoctorPrc = (currentUser?.prcLicense || '').trim()
+  const currentDoctorPtr = (currentUser?.ptrNumber || '').trim()
+
+  const [activeDoctorInfo, setActiveDoctorInfo] = useState(() => ({
+    name: consultation?.doctorName || (isVetAdmin ? currentDoctorName : 'Attending Veterinarian'),
+    signatureImage: consultation?.doctorSignatureImage || consultation?.signatureImage || (isVetAdmin ? currentDoctorSignature : null),
+    prcLicense: (consultation?.doctorPrcLicense || consultation?.prcLicense || (isVetAdmin ? currentDoctorPrc : '')).trim(),
+    ptrNumber: (consultation?.doctorPtrNumber || consultation?.ptrNumber || (isVetAdmin ? currentDoctorPtr : '')).trim(),
+  }))
+
+  const isModifiedByCurrentVet = isVetAdmin && (
+    prescription !== (consultation?.treatmentPlan || '') ||
+    clinicalNotes !== (consultation?.clinicalNotes || '')
+  )
+
+  const displayedDoctorName = isModifiedByCurrentVet ? currentDoctorName : (activeDoctorInfo.name || currentDoctorName)
+  const displayedDoctorSignature = isModifiedByCurrentVet ? currentDoctorSignature : (activeDoctorInfo.signatureImage || currentDoctorSignature)
+  const displayedPrcLicense = isModifiedByCurrentVet ? currentDoctorPrc : (activeDoctorInfo.prcLicense || currentDoctorPrc)
+  const displayedPtrNumber = isModifiedByCurrentVet ? currentDoctorPtr : (activeDoctorInfo.ptrNumber || currentDoctorPtr)
+
+  const doctorName = displayedDoctorName
+  const doctorSignatureImage = displayedDoctorSignature
+  const doctorPrcLicense = displayedPrcLicense
+  const doctorPtrNumber = displayedPtrNumber
+
+  const hasPrc = Boolean(displayedPrcLicense && displayedPrcLicense !== 'VET-894102')
+  const hasPtr = Boolean(displayedPtrNumber && displayedPtrNumber !== '1948201')
 
   // Check if case is flagged as awaiting lab test
   const isAwaitingLab = Boolean(
@@ -590,12 +619,31 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
     setSaveError('')
     try {
       if (consultation?.id) {
+        const savingDoctorName = isVetAdmin ? currentDoctorName : (activeDoctorInfo.name || 'Attending Veterinarian')
+        const savingSignature = isVetAdmin ? currentDoctorSignature : (activeDoctorInfo.signatureImage || null)
+        const savingPrc = isVetAdmin ? currentDoctorPrc : (activeDoctorInfo.prcLicense || '')
+        const savingPtr = isVetAdmin ? currentDoctorPtr : (activeDoctorInfo.ptrNumber || '')
+
         await updateConsultation(consultation.id, {
           diagnosis,
           secondaryDiagnosis,
           isComorbid,
           treatmentPlan: prescription,
           clinicalNotes: clinicalNotes,
+          doctorName: savingDoctorName,
+          doctorSignatureImage: savingSignature,
+          doctorPrcLicense: savingPrc,
+          doctorPtrNumber: savingPtr,
+          handledByUserId: currentUser?.id || currentUser?.username || savingDoctorName,
+          lastEditedBy: savingDoctorName,
+          lastEditedAt: new Date().toISOString(),
+        })
+
+        setActiveDoctorInfo({
+          name: savingDoctorName,
+          signatureImage: savingSignature,
+          prcLicense: savingPrc,
+          ptrNumber: savingPtr,
         })
         await logAuditEvent({
           action: 'TREATMENT_FINALIZED',
@@ -1744,19 +1792,19 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
                   Notice: Official prescription issued under Republic Act 9268. Valid for 30 days from date of examination. Substitution requires attending veterinarian authorization.
                 </div>
                 <div style={{ textAlign: 'center', width: 210 }}>
-                  {doctorSignatureImage ? (
+                  {displayedDoctorSignature ? (
                     <div style={{ marginBottom: 2 }}>
                       <img
-                        src={doctorSignatureImage}
+                        src={displayedDoctorSignature}
                         alt="E-Signature"
                         style={{ maxHeight: 32, maxWidth: 130, objectFit: 'contain', margin: '0 auto', display: 'block' }}
                       />
                     </div>
                   ) : null}
-                  <div style={{ borderBottom: '1px solid #0f172a', marginBottom: 4, height: doctorSignatureImage ? 4 : 20 }}></div>
-                  <strong style={{ fontSize: '0.84rem' }}>{doctorName}</strong><br />
-                  {hasPrc && (<><span style={{ fontSize: '0.72rem', color: '#475569' }}>PRC License No.: {doctorPrcLicense}</span><br /></>)}
-                  {hasPtr && (<span style={{ fontSize: '0.72rem', color: '#475569' }}>PTR No.: {doctorPtrNumber}</span>)}
+                  <div style={{ borderBottom: '1px solid #0f172a', marginBottom: 4, height: displayedDoctorSignature ? 4 : 20 }}></div>
+                  <strong style={{ fontSize: '0.84rem' }}>{displayedDoctorName}</strong><br />
+                  {hasPrc && (<><span style={{ fontSize: '0.72rem', color: '#475569' }}>PRC License No.: {displayedPrcLicense}</span><br /></>)}
+                  {hasPtr && (<span style={{ fontSize: '0.72rem', color: '#475569' }}>PTR No.: {displayedPtrNumber}</span>)}
                 </div>
               </div>
             </div>
@@ -2102,19 +2150,19 @@ export default function Treatment({ onBack, caseData, currentUser, authToken, ap
                 Notice: Official prescription issued under Republic Act 9268. Valid for 30 days from date of examination. Substitution requires attending veterinarian authorization.
               </div>
               <div style={{ textAlign: 'center', width: 230 }}>
-                {doctorSignatureImage ? (
+                {displayedDoctorSignature ? (
                   <div style={{ marginBottom: 4 }}>
                     <img
-                      src={doctorSignatureImage}
+                      src={displayedDoctorSignature}
                       alt="E-Signature"
                       style={{ maxHeight: 38, maxWidth: 150, objectFit: 'contain', margin: '0 auto', display: 'block' }}
                     />
                   </div>
                 ) : null}
-                <div style={{ borderBottom: '1px solid #0f172a', marginBottom: 6, height: doctorSignatureImage ? 6 : 32 }}></div>
-                <strong style={{ fontSize: '0.92rem' }}>{doctorName}</strong><br />
-                {hasPrc && (<><span style={{ fontSize: '0.8rem', color: '#475569' }}>PRC License No.: {doctorPrcLicense}</span><br /></>)}
-                {hasPtr && (<span style={{ fontSize: '0.8rem', color: '#475569' }}>PTR No.: {doctorPtrNumber}</span>)}
+                <div style={{ borderBottom: '1px solid #0f172a', marginBottom: 6, height: displayedDoctorSignature ? 6 : 32 }}></div>
+                <strong style={{ fontSize: '0.92rem' }}>{displayedDoctorName}</strong><br />
+                {hasPrc && (<><span style={{ fontSize: '0.8rem', color: '#475569' }}>PRC License No.: {displayedPrcLicense}</span><br /></>)}
+                {hasPtr && (<span style={{ fontSize: '0.8rem', color: '#475569' }}>PTR No.: {displayedPtrNumber}</span>)}
               </div>
             </div>
           </div>

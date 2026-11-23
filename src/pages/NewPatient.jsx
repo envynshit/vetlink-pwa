@@ -559,13 +559,24 @@ export default function NewPatient({ onBack, onViewPending, onCapture, currentUs
         labTestRequired && labTestReason ? `Lab Order: ${labTestReason}` : '',
       ].filter(Boolean).join(' | ')
 
+      const formattedDoctor = isVetOrAdmin && currentUser?.name
+        ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`)
+        : null
+
       const consultation = await addConsultation({
         patientId: patient.id,
+        handledByUserId: currentUser?.id || currentUser?.username || (isStaff ? 'STAFF' : 'VET'),
         clinicalNotes: combinedNotes,
         diagnosis: aiResult.label,
         secondaryDiagnosis: comorb.isComorbid ? comorb.secondary : null,
         isComorbid: comorb.isComorbid,
         treatmentPlan: '',
+        doctorName: formattedDoctor,
+        doctorSignatureImage: formattedDoctor ? (currentUser?.signatureImage || currentUser?.signature_image || null) : null,
+        doctorPrcLicense: formattedDoctor ? (currentUser?.prcLicense || '').trim() : null,
+        doctorPtrNumber: formattedDoctor ? (currentUser?.ptrNumber || '').trim() : null,
+        lastEditedBy: formattedDoctor,
+        lastEditedAt: new Date().toISOString(),
       })
 
       // 4. Convert image to base64 for local storage

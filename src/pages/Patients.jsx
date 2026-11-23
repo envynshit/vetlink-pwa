@@ -141,6 +141,10 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
         prescription: consult?.treatmentPlan || '',
         clinicalNotes: consult?.clinicalNotes || '',
         diagnosis: consult?.diagnosis || patient?.areaOfConcern || 'Cutaneous Dermatological Condition',
+        doctorName: consult?.doctorName || '',
+        signatureImage: consult?.doctorSignatureImage || consult?.signatureImage || '',
+        prcLicense: consult?.doctorPrcLicense || consult?.prcLicense || '',
+        ptrNumber: consult?.doctorPtrNumber || consult?.ptrNumber || '',
       })
     } catch (err) {
       console.warn('Could not load consultation for email:', err)
@@ -150,6 +154,10 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
         prescription: '',
         clinicalNotes: '',
         diagnosis: patient?.areaOfConcern || 'Cutaneous Dermatological Condition',
+        doctorName: '',
+        signatureImage: '',
+        prcLicense: '',
+        ptrNumber: '',
       })
     }
   }
@@ -423,6 +431,18 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
         if (reviewTreatmentPlan !== undefined) {
           updates.treatmentPlan = reviewTreatmentPlan.trim()
         }
+        if (!isStaff) {
+          const formattedDoctor = currentUser?.name
+            ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`)
+            : 'Attending Veterinarian'
+          updates.doctorName = formattedDoctor
+          updates.doctorSignatureImage = currentUser?.signatureImage || currentUser?.signature_image || null
+          updates.doctorPrcLicense = (currentUser?.prcLicense || '').trim()
+          updates.doctorPtrNumber = (currentUser?.ptrNumber || '').trim()
+          updates.handledByUserId = currentUser?.id || currentUser?.username || formattedDoctor
+          updates.lastEditedBy = formattedDoctor
+          updates.lastEditedAt = new Date().toISOString()
+        }
         if (Object.keys(updates).length > 0) {
           await updateConsultation(reviewConsult.id, updates)
         }
@@ -595,6 +615,12 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
           clinicalNotes: staffNotes,
           diagnosis: `Intake Check: ${pastConsult?.diagnosis || recheckPatient.areaOfConcern || 'Cutaneous Check'}`,
           treatmentPlan: pastConsult?.treatmentPlan || 'Awaiting attending veterinarian review.',
+          doctorName: pastConsult?.doctorName || null,
+          doctorSignatureImage: pastConsult?.doctorSignatureImage || pastConsult?.signatureImage || null,
+          doctorPrcLicense: pastConsult?.doctorPrcLicense || pastConsult?.prcLicense || null,
+          doctorPtrNumber: pastConsult?.doctorPtrNumber || pastConsult?.ptrNumber || null,
+          lastEditedBy: pastConsult?.lastEditedBy || null,
+          lastEditedAt: pastConsult?.lastEditedAt || null,
         })
 
         if (b64Img) {
@@ -629,6 +655,9 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
         setRecheckPatient(null)
       } else {
         // ── VETERINARIAN / ADMIN CLINICAL RECHECK FLOW ──
+        const formattedDoctor = currentUser?.name
+          ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`)
+          : 'Attending Veterinarian'
         const newConsult = await addConsultation({
           patientId: recheckPatient.id,
           handledByUserId: currentUser?.id || 'VET',
@@ -639,6 +668,12 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
           treatmentPlan: recheckProgress === 'resolved'
             ? 'Clinical discharge. Lesion resolved; resume routine preventive care.'
             : (vetAdjustedRx.trim() || pastConsult?.treatmentPlan || 'Maintain ongoing therapy; recheck in 14 days.'),
+          doctorName: formattedDoctor,
+          doctorSignatureImage: currentUser?.signatureImage || currentUser?.signature_image || null,
+          doctorPrcLicense: (currentUser?.prcLicense || '').trim(),
+          doctorPtrNumber: (currentUser?.ptrNumber || '').trim(),
+          lastEditedBy: formattedDoctor,
+          lastEditedAt: new Date().toISOString(),
         })
 
         if (b64Img) {
@@ -1922,6 +1957,10 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                                       prescription: v.consultation.treatmentPlan,
                                       clinicalNotes: v.consultation.clinicalNotes || '',
                                       diagnosis: v.consultation.diagnosis || recheckPatient?.areaOfConcern || 'Follow-up Recheck',
+                                      doctorName: v.consultation.doctorName || '',
+                                      signatureImage: v.consultation.doctorSignatureImage || v.consultation.signatureImage || '',
+                                      prcLicense: v.consultation.doctorPrcLicense || v.consultation.prcLicense || '',
+                                      ptrNumber: v.consultation.doctorPtrNumber || v.consultation.ptrNumber || '',
                                     })
                                   }}
                                   title="Email this visit's prescription to owner"
@@ -2419,9 +2458,10 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
           prescription={emailRxModalData.prescription}
           clinicalNotes={emailRxModalData.clinicalNotes}
           diagnosis={emailRxModalData.diagnosis}
-          doctorName={currentUser?.name ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`) : 'Attending Veterinarian'}
-          prcLicense={currentUser?.prcLicense || ''}
-          ptrNumber={currentUser?.ptrNumber || ''}
+          doctorName={emailRxModalData.doctorName || (currentUser?.name ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`) : 'Attending Veterinarian')}
+          signatureImage={emailRxModalData.signatureImage || (!isStaff ? (currentUser?.signatureImage || currentUser?.signature_image) : '')}
+          prcLicense={emailRxModalData.prcLicense || (!isStaff ? (currentUser?.prcLicense || '') : '')}
+          ptrNumber={emailRxModalData.ptrNumber || (!isStaff ? (currentUser?.ptrNumber || '') : '')}
           currentUser={currentUser}
           isStaff={isStaff}
           authToken={authToken}

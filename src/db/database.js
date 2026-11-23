@@ -192,6 +192,12 @@ function normalizeCloudRecord(storeName, record) {
     normalized.secondaryDiagnosis = record.secondary_diagnosis ?? record.secondaryDiagnosis
     normalized.isComorbid = record.is_comorbid ?? record.isComorbid ?? false
     normalized.treatmentPlan = record.treatment_plan ?? record.treatmentPlan
+    normalized.doctorName = record.doctor_name ?? record.doctorName ?? null
+    normalized.doctorSignatureImage = record.doctor_signature_image ?? record.doctorSignatureImage ?? record.signatureImage ?? null
+    normalized.doctorPrcLicense = record.doctor_prc_license ?? record.doctorPrcLicense ?? record.prcLicense ?? null
+    normalized.doctorPtrNumber = record.doctor_ptr_number ?? record.doctorPtrNumber ?? record.ptrNumber ?? null
+    normalized.lastEditedBy = record.last_edited_by ?? record.lastEditedBy ?? null
+    normalized.lastEditedAt = record.last_edited_at ?? record.lastEditedAt ?? null
   } else if (storeName === 'screeningResults') {
     normalized.consultationId = record.consultation_id ?? record.consultationId
     normalized.imageId = record.image_id ?? record.imageId
@@ -1177,12 +1183,18 @@ export async function addConsultation(consultation) {
   const record = {
     ...consultation,
     id,
-    secondaryDiagnosis: consultation.secondaryDiagnosis || null,
-    isComorbid:         Boolean(consultation.isComorbid),
-    createdAt:          now,
-    updatedAt:          now,
-    syncStatus:         'pending',
-    version:            1,
+    secondaryDiagnosis:   consultation.secondaryDiagnosis || null,
+    isComorbid:           Boolean(consultation.isComorbid),
+    doctorName:           consultation.doctorName || null,
+    doctorSignatureImage: consultation.doctorSignatureImage || consultation.signatureImage || null,
+    doctorPrcLicense:     consultation.doctorPrcLicense || consultation.prcLicense || null,
+    doctorPtrNumber:      consultation.doctorPtrNumber || consultation.ptrNumber || null,
+    lastEditedBy:         consultation.lastEditedBy || consultation.doctorName || null,
+    lastEditedAt:         consultation.lastEditedAt || now,
+    createdAt:            now,
+    updatedAt:            now,
+    syncStatus:           'pending',
+    version:              1,
   }
 
   await tx.objectStore('consultations').put(record)

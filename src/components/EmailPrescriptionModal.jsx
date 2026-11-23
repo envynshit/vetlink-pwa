@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { updatePatient, logAuditEvent } from '../db/database'
+import { updatePatient, updateConsultation, logAuditEvent } from '../db/database'
 
 // Isolated hidden iframe printer: Prints without triggering @media print on parent window
 function printElementViaIframe(elementHtml, docTitle = 'Official Veterinary Prescription') {
@@ -134,17 +134,6 @@ export default function EmailPrescriptionModal({
     return 'RX-1001'
   })()
   const cleanDiagnosis = diagnosis || consultation?.diagnosis || patient?.areaOfConcern || 'Cutaneous Dermatological Condition'
-  const cleanDoctor = (() => {
-    if (doctorName && doctorName !== 'Dr. Sarah Lin, DVM' && doctorName !== 'Attending Veterinarian') return doctorName
-    if (currentUser?.name) return currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`
-    return 'Attending Veterinarian'
-  })()
-  const cleanPrcLicense = (prcLicense || currentUser?.prcLicense || '').trim()
-  const cleanPtrNumber = ptrNumber || currentUser?.ptrNumber || ''
-  const cleanSignatureImage = signatureImage || currentUser?.signatureImage || currentUser?.signature_image || ''
-  const hasPrc = Boolean(cleanPrcLicense && cleanPrcLicense !== 'VET-894102')
-  const hasPtr = Boolean(cleanPtrNumber && cleanPtrNumber !== '1948201')
-
   const defaultSubject = `Official Veterinary Prescription - ${patientName} (${cleanDiagnosis})`
   const initialEmail = patient?.ownerEmail || ''
   const [recipientEmail, setRecipientEmail] = useState(initialEmail)
@@ -158,6 +147,65 @@ export default function EmailPrescriptionModal({
   const [copied, setCopied] = useState(false)
   const [allowDuplicate, setAllowDuplicate] = useState(false)
   const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
+
+  const isDoctorEditedInModal = !isStaff && (
+    (prescriptionText.trim() !== (prescription || '').trim()) ||
+    (currentClinicalNotes.trim() !== (clinicalNotes || '').trim())
+  )
+
+  const cleanDoctor = (() => {
+    if (isDoctorEditedInModal && currentUser?.name) {
+      return currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`
+    }
+    const linkedDoc = consultation?.doctorName || doctorName
+    if (linkedDoc && linkedDoc !== 'Attending Veterinarian') return linkedDoc
+    if (!isStaff && currentUser?.name) {
+      return currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`
+    }
+    return consultation?.doctorName || doctorName || 'Attending Veterinarian'
+  })()
+
+  const cleanSignatureImage = (() => {
+    if (isDoctorEditedInModal && (currentUser?.signatureImage || currentUser?.signature_image)) {
+      return currentUser.signatureImage || currentUser.signature_image
+    }
+    return (
+      consultation?.doctorSignatureImage ||
+      consultation?.signatureImage ||
+      signatureImage ||
+      (!isStaff ? (currentUser?.signatureImage || currentUser?.signature_image) : null) ||
+      ''
+    )
+  })()
+
+  const cleanPrcLicense = (() => {
+    if (isDoctorEditedInModal && currentUser?.prcLicense) {
+      return (currentUser.prcLicense || '').trim()
+    }
+    return (
+      consultation?.doctorPrcLicense ||
+      consultation?.prcLicense ||
+      prcLicense ||
+      (!isStaff ? (currentUser?.prcLicense || '') : '') ||
+      ''
+    ).trim()
+  })()
+
+  const cleanPtrNumber = (() => {
+    if (isDoctorEditedInModal && currentUser?.ptrNumber) {
+      return (currentUser.ptrNumber || '').trim()
+    }
+    return (
+      consultation?.doctorPtrNumber ||
+      consultation?.ptrNumber ||
+      ptrNumber ||
+      (!isStaff ? (currentUser?.ptrNumber || '') : '') ||
+      ''
+    ).trim()
+  })()
+
+  const hasPrc = Boolean(cleanPrcLicense && cleanPrcLicense !== 'VET-894102')
+  const hasPtr = Boolean(cleanPtrNumber && cleanPtrNumber !== '1948201')
 
   const effectivePrescription = isStaff ? (prescription || '') : (prescriptionText || prescription || '')
   const effectiveClinicalNotes = isStaff ? (clinicalNotes || '') : (currentClinicalNotes || clinicalNotes || '')
@@ -273,6 +321,27 @@ export default function EmailPrescriptionModal({
     }
   }
 
+  // If an authorized doctor modified the prescription/notes in this modal, persist it to IndexedDB
+  const syncPrescriptionIfDoctorEdited = async () => {
+    if (isDoctorEditedInModal && consultation?.id) {
+      try {
+        await updateConsultation(consultation.id, {
+          treatmentPlan: effectivePrescription,
+          clinicalNotes: effectiveClinicalNotes,
+          doctorName: cleanDoctor,
+          doctorSignatureImage: cleanSignatureImage || null,
+          doctorPrcLicense: cleanPrcLicense,
+          doctorPtrNumber: cleanPtrNumber,
+          handledByUserId: currentUser?.id || currentUser?.username || cleanDoctor,
+          lastEditedBy: cleanDoctor,
+          lastEditedAt: new Date().toISOString(),
+        })
+      } catch (err) {
+        console.warn('Could not sync doctor edits to consultation:', err)
+      }
+    }
+  }
+
   // Option 1: Send via Clinic Cloud Email Endpoint
   const handleSendCloudEmail = async (e) => {
     if (e) e.preventDefault()
@@ -297,6 +366,7 @@ export default function EmailPrescriptionModal({
     setIsSending(true)
     try {
       await syncEmailToPatientRecord(trimmedEmail)
+      await syncPrescriptionIfDoctorEdited()
 
       const payload = {
         recipient_email: trimmedEmail,
@@ -360,6 +430,7 @@ export default function EmailPrescriptionModal({
   }
 
   const handlePrintRxPad = () => {
+    syncPrescriptionIfDoctorEdited()
     const rxEl = document.getElementById('vetlink-rx-paper')
     if (rxEl) {
       printElementViaIframe(rxEl.outerHTML, `Prescription_${patientName.replace(/\s+/g, '_')}_${cleanRxId}`)
@@ -393,6 +464,7 @@ export default function EmailPrescriptionModal({
     }
 
     try {
+      await syncPrescriptionIfDoctorEdited()
       const headers = { 'Content-Type': 'application/json' }
       if (authToken) {
         headers['Authorization'] = `Bearer ${authToken}`
@@ -441,6 +513,7 @@ export default function EmailPrescriptionModal({
 
     try {
       await syncEmailToPatientRecord(trimmedEmail)
+      await syncPrescriptionIfDoctorEdited()
       recordDispatchCache(trimmedEmail)
 
       const subject = encodeURIComponent(effectiveSubject)
@@ -483,6 +556,7 @@ export default function EmailPrescriptionModal({
 
     try {
       await syncEmailToPatientRecord(trimmedEmail)
+      await syncPrescriptionIfDoctorEdited()
       recordDispatchCache(trimmedEmail)
 
       const subject = encodeURIComponent(effectiveSubject)
@@ -884,7 +958,7 @@ export default function EmailPrescriptionModal({
               />
               {isStaff && (
                 <span style={{ fontSize: '0.70rem', color: '#64748b', display: 'block', marginTop: 2 }}>
-                  Prescription order certified by attending veterinarian. Cannot be edited by staff.
+                  Prescription order certified by attending veterinarian ({cleanDoctor}). Cannot be edited by staff.
                 </span>
               )}
             </div>
@@ -940,7 +1014,7 @@ export default function EmailPrescriptionModal({
               />
               {isStaff && (
                 <span style={{ fontSize: '0.70rem', color: '#64748b', display: 'block', marginTop: 2 }}>
-                  Clinical discharge and care directions cannot be edited by staff.
+                  Clinical care and discharge directions certified by {cleanDoctor}. Cannot be edited by staff.
                 </span>
               )}
             </div>
