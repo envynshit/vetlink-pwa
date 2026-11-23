@@ -2411,6 +2411,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
       {/* Send Prescription to Pet Owner Modal */}
       {emailRxModalData && (
         <EmailPrescriptionModal
+          key={`${emailRxModalData.patient?.id || ''}_${emailRxModalData.consultation?.id || ''}`}
           isOpen={Boolean(emailRxModalData)}
           onClose={() => setEmailRxModalData(null)}
           patient={emailRxModalData.patient}
@@ -2422,6 +2423,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
           prcLicense={currentUser?.prcLicense || ''}
           ptrNumber={currentUser?.ptrNumber || ''}
           currentUser={currentUser}
+          isStaff={isStaff}
           authToken={authToken}
           apiBaseUrl={apiBaseUrl}
           onPrescriptionSent={(newEmail) => {

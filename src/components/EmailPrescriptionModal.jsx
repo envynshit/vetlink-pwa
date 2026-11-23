@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState } from 'react'
 import { updatePatient, logAuditEvent } from '../db/database'
 
 // Isolated hidden iframe printer: Prints without triggering @media print on parent window
@@ -82,7 +82,9 @@ function printElementViaIframe(elementHtml, docTitle = 'Official Veterinary Pres
           if (document.body.contains(iframe)) {
             document.body.removeChild(iframe)
           }
-        } catch (e) {}
+        } catch {
+          // ignore cleanup error
+        }
       }, 1500)
     }
   }, 250)
@@ -101,23 +103,13 @@ export default function EmailPrescriptionModal({
   ptrNumber,
   signatureImage,
   currentUser,
+  isStaff: propIsStaff,
   authToken,
   apiBaseUrl = 'http://localhost:8000',
   onPrescriptionSent,
 }) {
-  const initialEmail = patient?.ownerEmail || ''
-  const [recipientEmail, setRecipientEmail] = useState(initialEmail)
-  const [emailSubject, setEmailSubject] = useState('')
-  const [personalNote, setPersonalNote] = useState('')
-  const [saveToPatient, setSaveToPatient] = useState(true)
-  const [isSending, setIsSending] = useState(false)
-  const [statusMessage, setStatusMessage] = useState('')
-  const [errorMessage, setErrorMessage] = useState('')
-  const [copied, setCopied] = useState(false)
-  const [allowDuplicate, setAllowDuplicate] = useState(false)
-  const [isDuplicateDetected, setIsDuplicateDetected] = useState(false)
-  const [duplicateSentTime, setDuplicateSentTime] = useState('')
-  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
+  const roleStr = String(currentUser?.role || '').toLowerCase().trim()
+  const isStaff = propIsStaff !== undefined ? propIsStaff : (roleStr.includes('staff') || roleStr === 'clinic staff')
 
   const patientName = patient?.name || 'Patient'
   const patientSpecies = patient?.species || 'Canine'
@@ -153,44 +145,54 @@ export default function EmailPrescriptionModal({
   const hasPrc = Boolean(cleanPrcLicense && cleanPrcLicense !== 'VET-894102')
   const hasPtr = Boolean(cleanPtrNumber && cleanPtrNumber !== '1948201')
 
-  // Check 24-Hour Duplicate Dispatch Guard
-  useEffect(() => {
-    if (isOpen) {
-      const email = patient?.ownerEmail || ''
-      setRecipientEmail(email)
-      setEmailSubject(`Official Veterinary Prescription - ${patientName} (${cleanDiagnosis})`)
-      setPersonalNote('')
-      setStatusMessage('')
-      setErrorMessage('')
-      setCopied(false)
-      setAllowDuplicate(false)
+  const defaultSubject = `Official Veterinary Prescription - ${patientName} (${cleanDiagnosis})`
+  const initialEmail = patient?.ownerEmail || ''
+  const [recipientEmail, setRecipientEmail] = useState(initialEmail)
+  const [emailSubject, setEmailSubject] = useState(defaultSubject)
+  const [prescriptionText, setPrescriptionText] = useState(prescription)
+  const [currentClinicalNotes, setCurrentClinicalNotes] = useState(clinicalNotes)
+  const [saveToPatient, setSaveToPatient] = useState(true)
+  const [isSending, setIsSending] = useState(false)
+  const [statusMessage, setStatusMessage] = useState('')
+  const [errorMessage, setErrorMessage] = useState('')
+  const [copied, setCopied] = useState(false)
+  const [allowDuplicate, setAllowDuplicate] = useState(false)
+  const [isDownloadingPdf, setIsDownloadingPdf] = useState(false)
 
-      // Inspect duplicate record in localStorage
-      try {
-        const cacheKey = `vetlink_rx_dispatch_${patient?.id || cleanRxId}`
-        const cachedRaw = localStorage.getItem(cacheKey)
-        if (cachedRaw) {
-          const cached = JSON.parse(cachedRaw)
-          const isSameRecipient = (cached.recipient || '').toLowerCase() === email.trim().toLowerCase()
-          const isSameRx = (cached.prescription || '').trim() === (prescription || '').trim()
-          const isSameDiag = (cached.diagnosis || '').trim() === cleanDiagnosis.trim()
-          const sentDate = new Date(cached.timestamp)
-          const hoursAgo = (Date.now() - sentDate.getTime()) / (1000 * 60 * 60)
+  const effectivePrescription = isStaff ? (prescription || '') : (prescriptionText || prescription || '')
+  const effectiveClinicalNotes = isStaff ? (clinicalNotes || '') : (currentClinicalNotes || clinicalNotes || '')
+  const effectiveSubject = isStaff ? defaultSubject : (emailSubject || defaultSubject)
 
-          if (isSameRecipient && isSameRx && isSameDiag && hoursAgo < 24) {
-            setIsDuplicateDetected(true)
-            setDuplicateSentTime(sentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }))
-          } else {
-            setIsDuplicateDetected(false)
+  // 24-Hour Duplicate Dispatch Guard (computed once on modal mount)
+  const [duplicateWarning, setDuplicateWarning] = useState(() => {
+    try {
+      const cacheKey = `vetlink_rx_dispatch_${patient?.id || cleanRxId}`
+      const cachedRaw = localStorage.getItem(cacheKey)
+      if (cachedRaw) {
+        const cached = JSON.parse(cachedRaw)
+        const email = (initialEmail || '').trim().toLowerCase()
+        const isSameRecipient = (cached.recipient || '').toLowerCase() === email
+        const currentRx = (prescription || '').trim()
+        const isSameRx = (cached.prescription || '').trim() === currentRx
+        const isSameDiag = (cached.diagnosis || '').trim() === cleanDiagnosis.trim()
+        const sentDate = new Date(cached.timestamp)
+        const hoursAgo = (Date.now() - sentDate.getTime()) / (1000 * 60 * 60)
+
+        if (isSameRecipient && isSameRx && isSameDiag && hoursAgo < 24) {
+          return {
+            isDuplicate: true,
+            sentTime: sentDate.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
           }
-        } else {
-          setIsDuplicateDetected(false)
         }
-      } catch {
-        setIsDuplicateDetected(false)
       }
+    } catch {
+      // ignore parse errors
     }
-  }, [isOpen, patient, patientName, cleanDiagnosis, cleanRxId, prescription])
+    return { isDuplicate: false, sentTime: '' }
+  })
+
+  const isDuplicateDetected = duplicateWarning.isDuplicate
+  const duplicateSentTime = duplicateWarning.sentTime
 
   if (!isOpen) return null
 
@@ -219,13 +221,12 @@ export default function EmailPrescriptionModal({
       '',
       'Rx MEDICATION & DOSAGE DISPENSING ORDER:',
       '--------------------------------------------------',
-      prescription || 'No oral or topical medication prescribed.',
+      effectivePrescription || 'No oral or topical medication prescribed.',
       '--------------------------------------------------',
       '',
       'CLINICAL CARE, HOME ADMINISTRATION & RECHECK INSTRUCTIONS:',
-      clinicalNotes || 'Follow standard home hygiene and clinical monitoring.',
+      effectiveClinicalNotes || 'Follow standard home hygiene and clinical monitoring.',
       '',
-      personalNote ? `CLINIC STAFF INSTRUCTIONS TO OWNER:\n"${personalNote}"\n` : '',
       'ATTENDING VETERINARIAN:',
       cleanDoctor,
       hasPrc ? `PRC License No.: ${cleanPrcLicense}` : '',
@@ -263,7 +264,7 @@ export default function EmailPrescriptionModal({
         JSON.stringify({
           recipient: targetEmail,
           diagnosis: cleanDiagnosis,
-          prescription: prescription,
+          prescription: effectivePrescription,
           timestamp: new Date().toISOString(),
         })
       )
@@ -306,10 +307,8 @@ export default function EmailPrescriptionModal({
         breed: patientBreed,
         weight: patient?.weight ? String(patient.weight) : null,
         diagnosis: cleanDiagnosis,
-        prescription_text: prescription,
-        clinical_notes: personalNote
-          ? `${clinicalNotes}\n\nClinic Staff Note: ${personalNote}`
-          : clinicalNotes,
+        prescription_text: effectivePrescription,
+        clinical_notes: effectiveClinicalNotes,
         doctor_name: cleanDoctor,
         rx_id: cleanRxId,
         allow_duplicate: allowDuplicate,
@@ -337,14 +336,14 @@ export default function EmailPrescriptionModal({
       const data = await res.json()
       setStatusMessage(data.message || `Official prescription successfully emailed to ${trimmedEmail}.`)
       recordDispatchCache(trimmedEmail)
-      setIsDuplicateDetected(false)
+      setDuplicateWarning({ isDuplicate: false, sentTime: '' })
 
       await logAuditEvent({
         action: 'PRESCRIPTION_EMAILED',
-        user: currentUser || { name: 'Clinic Staff', role: 'Staff' },
+        user: currentUser || { name: 'Clinic Staff', role: isStaff ? 'Clinic Staff' : 'Clinic Admin' },
         targetEntity: 'patients',
         targetId: patient?.id || '',
-        details: `Dispatched official prescription for ${patientName} to ${trimmedEmail} via Clinic Cloud Email.`,
+        details: `Dispatched official prescription for ${patientName} to ${trimmedEmail} via Clinic Cloud Email (${isStaff ? 'Staff Mode (Certified Read-Only)' : 'Doctor Authorized'}).`,
       })
 
       if (onPrescriptionSent) {
@@ -384,10 +383,8 @@ export default function EmailPrescriptionModal({
       breed: patientBreed,
       weight: patient?.weight ? String(patient.weight) : null,
       diagnosis: cleanDiagnosis,
-      prescription_text: prescription,
-      clinical_notes: personalNote
-        ? `${clinicalNotes}\n\nClinic Staff Note: ${personalNote}`
-        : clinicalNotes,
+      prescription_text: effectivePrescription,
+      clinical_notes: effectiveClinicalNotes,
       doctor_name: cleanDoctor,
       rx_id: cleanRxId,
       prc_license: cleanPrcLicense,
@@ -446,7 +443,7 @@ export default function EmailPrescriptionModal({
       await syncEmailToPatientRecord(trimmedEmail)
       recordDispatchCache(trimmedEmail)
 
-      const subject = encodeURIComponent(emailSubject || `Official Veterinary Prescription - ${patientName}`)
+      const subject = encodeURIComponent(effectiveSubject)
       const body = encodeURIComponent(generatePrescriptionText())
       const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(trimmedEmail)}&su=${subject}&body=${body}`
 
@@ -455,10 +452,10 @@ export default function EmailPrescriptionModal({
 
       await logAuditEvent({
         action: 'PRESCRIPTION_EMAILED',
-        user: currentUser || { name: 'Clinic Staff', role: 'Staff' },
+        user: currentUser || { name: 'Clinic Staff', role: isStaff ? 'Clinic Staff' : 'Clinic Admin' },
         targetEntity: 'patients',
         targetId: patient?.id || '',
-        details: `Opened Gmail Web composer for ${patientName} (${trimmedEmail}).`,
+        details: `Opened Gmail Web composer for ${patientName} (${trimmedEmail}) [${isStaff ? 'Staff Mode' : 'Doctor Mode'}].`,
       })
 
       if (onPrescriptionSent) {
@@ -488,7 +485,7 @@ export default function EmailPrescriptionModal({
       await syncEmailToPatientRecord(trimmedEmail)
       recordDispatchCache(trimmedEmail)
 
-      const subject = encodeURIComponent(emailSubject || `Official Veterinary Prescription - ${patientName}`)
+      const subject = encodeURIComponent(effectiveSubject)
       const body = encodeURIComponent(generatePrescriptionText())
       const mailtoUrl = `mailto:${encodeURIComponent(trimmedEmail)}?subject=${subject}&body=${body}`
 
@@ -498,10 +495,10 @@ export default function EmailPrescriptionModal({
 
       await logAuditEvent({
         action: 'PRESCRIPTION_EMAILED',
-        user: currentUser || { name: 'Clinic Staff', role: 'Staff' },
+        user: currentUser || { name: 'Clinic Staff', role: isStaff ? 'Clinic Staff' : 'Clinic Admin' },
         targetEntity: 'patients',
         targetId: patient?.id || '',
-        details: `Opened prescription mail draft for ${patientName} (${trimmedEmail}) via Device Mail Client.`,
+        details: `Opened prescription mail draft for ${patientName} (${trimmedEmail}) via Device Mail Client [${isStaff ? 'Staff Mode' : 'Doctor Mode'}].`,
       })
 
       if (onPrescriptionSent) {
@@ -733,6 +730,29 @@ export default function EmailPrescriptionModal({
               </div>
             )}
 
+            {/* Staff Permission Protocol Notice */}
+            {isStaff && (
+              <div
+                style={{
+                  padding: '8px 12px',
+                  background: '#f8fafc',
+                  border: '1px solid #cbd5e1',
+                  borderRadius: 6,
+                  color: '#334155',
+                  fontSize: '0.78rem',
+                  lineHeight: 1.4,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 8,
+                }}
+              >
+                <span style={{ fontSize: '1rem' }} aria-hidden="true">🔒</span>
+                <div>
+                  <strong>Staff Protocol:</strong> Prescription order, email subject, and clinical notes are certified read-only per clinic protocol and Republic Act 9268.
+                </div>
+              </div>
+            )}
+
             {/* Recipient Email Input */}
             <div>
               <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>
@@ -760,13 +780,39 @@ export default function EmailPrescriptionModal({
 
             {/* Email Subject */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>
-                Email Subject:
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b' }}>
+                  Email Subject:
+                </label>
+                {isStaff ? (
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      background: '#f1f5f9',
+                      color: '#64748b',
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                    title="Read-only for Clinic Staff"
+                  >
+                    <span>🔒</span> Locked for Staff
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.68rem', color: '#0284c7', fontWeight: 600 }}>
+                    Doctor Editable
+                  </span>
+                )}
+              </div>
               <input
                 type="text"
-                value={emailSubject}
-                onChange={(e) => setEmailSubject(e.target.value)}
+                value={isStaff ? effectiveSubject : emailSubject}
+                onChange={(e) => !isStaff && setEmailSubject(e.target.value)}
+                readOnly={isStaff}
+                disabled={isStaff}
                 style={{
                   width: '100%',
                   padding: '7px 10px',
@@ -774,20 +820,111 @@ export default function EmailPrescriptionModal({
                   borderRadius: 6,
                   fontSize: '0.82rem',
                   boxSizing: 'border-box',
+                  background: isStaff ? '#f1f5f9' : '#ffffff',
+                  color: isStaff ? '#475569' : '#0f172a',
+                  cursor: isStaff ? 'not-allowed' : 'text',
                 }}
               />
+              {isStaff && (
+                <span style={{ fontSize: '0.70rem', color: '#64748b', display: 'block', marginTop: 2 }}>
+                  Standardized official subject cannot be edited by clinic staff.
+                </span>
+              )}
             </div>
 
-            {/* Clinic Staff Personal Note */}
+            {/* Prescription (Rx) Dispensing Order */}
             <div>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 700, color: '#1e293b', marginBottom: 4 }}>
-                Clinic Note / Special Instructions (Optional):
-              </label>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b' }}>
+                  Prescription (Rx) Dispensing Order:
+                </label>
+                {isStaff ? (
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      background: '#f1f5f9',
+                      color: '#64748b',
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                    title="Republic Act 9268: Clinical prescription modifications are legally restricted to licensed veterinarians"
+                  >
+                    <span>🔒</span> Locked for Staff
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.68rem', color: '#0284c7', fontWeight: 600 }}>
+                    Doctor Editable
+                  </span>
+                )}
+              </div>
               <textarea
                 rows={2}
-                value={personalNote}
-                onChange={(e) => setPersonalNote(e.target.value)}
-                placeholder="e.g. Please bring Buddy back next Monday for follow-up skin scrape."
+                value={effectivePrescription}
+                onChange={(e) => !isStaff && setPrescriptionText(e.target.value)}
+                readOnly={isStaff}
+                disabled={isStaff}
+                placeholder="Prescription medication, dosages, and regimens..."
+                style={{
+                  width: '100%',
+                  padding: '8px 10px',
+                  border: '1px solid var(--border, #cbd5e1)',
+                  borderRadius: 6,
+                  fontSize: '0.82rem',
+                  fontFamily: 'Consolas, monospace',
+                  boxSizing: 'border-box',
+                  background: isStaff ? '#f1f5f9' : '#ffffff',
+                  color: isStaff ? '#475569' : '#0f172a',
+                  cursor: isStaff ? 'not-allowed' : 'text',
+                  resize: isStaff ? 'none' : 'vertical',
+                }}
+              />
+              {isStaff && (
+                <span style={{ fontSize: '0.70rem', color: '#64748b', display: 'block', marginTop: 2 }}>
+                  Prescription order certified by attending veterinarian. Cannot be edited by staff.
+                </span>
+              )}
+            </div>
+
+            {/* Clinical Notes & Instructions */}
+            <div>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 4 }}>
+                <label style={{ fontSize: '0.8rem', fontWeight: 700, color: '#1e293b' }}>
+                  Clinical Note &amp; Instructions:
+                </label>
+                {isStaff ? (
+                  <span
+                    style={{
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      background: '#f1f5f9',
+                      color: '#64748b',
+                      padding: '2px 6px',
+                      borderRadius: 4,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 4,
+                    }}
+                    title="Clinical care notes are legally reserved for the veterinarian"
+                  >
+                    <span>🔒</span> Locked for Staff
+                  </span>
+                ) : (
+                  <span style={{ fontSize: '0.68rem', color: '#0284c7', fontWeight: 600 }}>
+                    Doctor Editable
+                  </span>
+                )}
+              </div>
+              <textarea
+                rows={2}
+                value={effectiveClinicalNotes}
+                onChange={(e) => !isStaff && setCurrentClinicalNotes(e.target.value)}
+                readOnly={isStaff}
+                disabled={isStaff}
+                placeholder="e.g. Follow standard home hygiene and clinical monitoring."
                 style={{
                   width: '100%',
                   padding: '8px 10px',
@@ -795,9 +932,17 @@ export default function EmailPrescriptionModal({
                   borderRadius: 6,
                   fontSize: '0.82rem',
                   boxSizing: 'border-box',
-                  resize: 'none',
+                  background: isStaff ? '#f1f5f9' : '#ffffff',
+                  color: isStaff ? '#475569' : '#0f172a',
+                  cursor: isStaff ? 'not-allowed' : 'text',
+                  resize: isStaff ? 'none' : 'vertical',
                 }}
               />
+              {isStaff && (
+                <span style={{ fontSize: '0.70rem', color: '#64748b', display: 'block', marginTop: 2 }}>
+                  Clinical discharge and care directions cannot be edited by staff.
+                </span>
+              )}
             </div>
 
             {/* Save to Record Toggle */}
@@ -1049,7 +1194,7 @@ export default function EmailPrescriptionModal({
                   whiteSpace: 'pre-wrap',
                 }}
               >
-                {prescription || 'No oral or topical medication prescribed.'}
+                {effectivePrescription || 'No oral or topical medication prescribed.'}
               </div>
             </div>
 
@@ -1072,8 +1217,7 @@ export default function EmailPrescriptionModal({
                   whiteSpace: 'pre-wrap',
                 }}
               >
-                {clinicalNotes || 'Follow standard home hygiene and monitoring.'}
-                {personalNote ? `\nStaff Note: ${personalNote}` : ''}
+                {effectiveClinicalNotes || 'Follow standard home hygiene and monitoring.'}
               </div>
             </div>
 
