@@ -417,31 +417,6 @@ export default function Treatment({ onBack, caseData, currentUser }) {
     }
   })
 
-  const isModifiedByCurrentVet = isVetAdmin && (
-    prescription !== (consultation?.treatmentPlan || '') ||
-    clinicalNotes !== (consultation?.clinicalNotes || '')
-  )
-
-  const displayedDoctorName = isModifiedByCurrentVet && currentDoctorName
-    ? currentDoctorName
-    : (activeDoctorInfo.name || currentDoctorName || 'Dr. Emily Chen, DVM')
-  const displayedDoctorSignature = isModifiedByCurrentVet && currentDoctorSignature
-    ? currentDoctorSignature
-    : (activeDoctorInfo.signatureImage || currentDoctorSignature || null)
-  const displayedPrcLicense = isModifiedByCurrentVet && currentDoctorPrc
-    ? currentDoctorPrc
-    : (activeDoctorInfo.prcLicense || currentDoctorPrc || 'VET-894102')
-  const displayedPtrNumber = isModifiedByCurrentVet && currentDoctorPtr
-    ? currentDoctorPtr
-    : (activeDoctorInfo.ptrNumber || currentDoctorPtr || '1948201')
-
-  const doctorName = displayedDoctorName
-  const doctorPrcLicense = displayedPrcLicense
-  const doctorPtrNumber = displayedPtrNumber
-
-  const hasPrc = Boolean(displayedPrcLicense && displayedPrcLicense !== 'VET-894102')
-  const hasPtr = Boolean(displayedPtrNumber && displayedPtrNumber !== '1948201')
-
   // Check if case is flagged as awaiting lab test
   const isAwaitingLab = Boolean(
     caseData?.assignedStatus === 'Awaiting Lab Test' ||
@@ -610,6 +585,31 @@ export default function Treatment({ onBack, caseData, currentUser }) {
   const [clinicalNotes, setClinicalNotes] = useState(initialNotes)
   const [editableSteps, setEditableSteps] = useState(treatmentSteps)
   const [isEditingSteps, setIsEditingSteps] = useState(false)
+
+  const isModifiedByCurrentVet = isVetAdmin && (
+    prescription !== (consultation?.treatmentPlan || '') ||
+    clinicalNotes !== (consultation?.clinicalNotes || '')
+  )
+
+  const displayedDoctorName = isModifiedByCurrentVet && currentDoctorName
+    ? currentDoctorName
+    : (activeDoctorInfo.name || currentDoctorName || 'Dr. Emily Chen, DVM')
+  const displayedDoctorSignature = isModifiedByCurrentVet && currentDoctorSignature
+    ? currentDoctorSignature
+    : (activeDoctorInfo.signatureImage || currentDoctorSignature || null)
+  const displayedPrcLicense = isModifiedByCurrentVet && currentDoctorPrc
+    ? currentDoctorPrc
+    : (activeDoctorInfo.prcLicense || currentDoctorPrc || 'VET-894102')
+  const displayedPtrNumber = isModifiedByCurrentVet && currentDoctorPtr
+    ? currentDoctorPtr
+    : (activeDoctorInfo.ptrNumber || currentDoctorPtr || '1948201')
+
+  const doctorName = displayedDoctorName
+  const doctorPrcLicense = displayedPrcLicense
+  const doctorPtrNumber = displayedPtrNumber
+
+  const hasPrc = Boolean(displayedPrcLicense && displayedPrcLicense !== 'VET-894102')
+  const hasPtr = Boolean(displayedPtrNumber && displayedPtrNumber !== '1948201')
 
   // Keep editable steps in sync when disease/case changes
   useEffect(() => {
