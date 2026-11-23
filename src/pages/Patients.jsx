@@ -12,7 +12,8 @@ import {
   updateConsultation,
   addScreeningResult,
   getScreeningResultsByConsultation,
-  getConsultationSymptoms
+  getConsultationSymptoms,
+  getClinicVeterinarian
 } from '../db/database'
 import CameraCaptureModal from '../components/CameraCaptureModal'
 import ImageCropModal from '../components/ImageCropModal'
@@ -52,8 +53,7 @@ const CLINICAL_DIAGNOSIS_GROUPS = {
 export default function Patients({ authToken, apiBaseUrl = 'http://localhost:8000', isOffline = false, currentUser, onProceedToTreatment }) {
 
   const roleStr = String(currentUser?.role || '').toLowerCase().trim()
-  const isStaff = roleStr.includes('staff') || roleStr === 'clinic staff'
-  const isVetOrAdmin = !isStaff
+  const isStaff = roleStr.includes('staff') || roleStr === 'clinic staff' || String(currentUser?.name || '').toLowerCase().includes('staff')
 
   const [patients, setPatients] = useState([])
   const [searchTerm, setSearchTerm] = useState('')
@@ -131,33 +131,84 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
   const handleOpenEmailRx = async (patient, specificConsult = null) => {
     try {
       let consult = specificConsult
+      let consults = []
       if (!consult) {
-        const consults = await getConsultationsByPatient(patient.id)
+        consults = await getConsultationsByPatient(patient.id)
         consult = consults && consults.length > 0 ? consults[consults.length - 1] : null
+      } else {
+        consults = await getConsultationsByPatient(patient.id)
       }
+
+      // Find the last veterinarian who created or edited an Rx for this patient
+      let resolvedDoctor = null
+
+      // 1. Check if the active consult has a valid non-staff doctor
+      const activeDocName = consult?.doctorName || consult?.lastEditedBy
+      if (activeDocName && !activeDocName.toLowerCase().includes('staff') && activeDocName !== 'Attending Veterinarian') {
+        resolvedDoctor = {
+          name: activeDocName.startsWith('Dr.') ? activeDocName : `Dr. ${activeDocName}`,
+          signatureImage: consult.doctorSignatureImage || consult.signatureImage || null,
+          prcLicense: consult.doctorPrcLicense || consult.prcLicense || '',
+          ptrNumber: consult.doctorPtrNumber || consult.ptrNumber || '',
+        }
+      }
+
+      // 2. If not found on active consult, search prior consultations in reverse order (last doctor who edited it)
+      if (!resolvedDoctor && consults && consults.length > 0) {
+        for (let i = consults.length - 1; i >= 0; i--) {
+          const c = consults[i]
+          const cDoc = c.doctorName || c.lastEditedBy
+          if (cDoc && !cDoc.toLowerCase().includes('staff') && cDoc !== 'Attending Veterinarian') {
+            resolvedDoctor = {
+              name: cDoc.startsWith('Dr.') ? cDoc : `Dr. ${cDoc}`,
+              signatureImage: c.doctorSignatureImage || c.signatureImage || null,
+              prcLicense: c.doctorPrcLicense || c.prcLicense || '',
+              ptrNumber: c.doctorPtrNumber || c.ptrNumber || '',
+            }
+            break
+          }
+        }
+      }
+
+      // 3. If currently logged in as a Vet/Admin (!isStaff), and no doctor recorded, use current user
+      if (!resolvedDoctor && !isStaff && currentUser?.name && !currentUser.name.toLowerCase().includes('staff')) {
+        resolvedDoctor = {
+          name: currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`,
+          signatureImage: currentUser.signatureImage || currentUser.signature_image || null,
+          prcLicense: (currentUser.prcLicense || '').trim(),
+          ptrNumber: (currentUser.ptrNumber || '').trim(),
+        }
+      }
+
+      // 4. Fall back to clinic veterinarian lookup from IndexedDB
+      if (!resolvedDoctor) {
+        resolvedDoctor = await getClinicVeterinarian(consult?.doctorName || consult?.lastEditedBy)
+      }
+
       setEmailRxModalData({
         patient,
         consultation: consult,
         prescription: consult?.treatmentPlan || '',
         clinicalNotes: consult?.clinicalNotes || '',
         diagnosis: consult?.diagnosis || patient?.areaOfConcern || 'Cutaneous Dermatological Condition',
-        doctorName: consult?.doctorName || '',
-        signatureImage: consult?.doctorSignatureImage || consult?.signatureImage || '',
-        prcLicense: consult?.doctorPrcLicense || consult?.prcLicense || '',
-        ptrNumber: consult?.doctorPtrNumber || consult?.ptrNumber || '',
+        doctorName: resolvedDoctor?.name || 'Dr. Emily Chen, DVM',
+        signatureImage: resolvedDoctor?.signatureImage || '',
+        prcLicense: resolvedDoctor?.prcLicense || '',
+        ptrNumber: resolvedDoctor?.ptrNumber || '',
       })
     } catch (err) {
       console.warn('Could not load consultation for email:', err)
+      const clinicVet = await getClinicVeterinarian()
       setEmailRxModalData({
         patient,
         consultation: null,
         prescription: '',
         clinicalNotes: '',
         diagnosis: patient?.areaOfConcern || 'Cutaneous Dermatological Condition',
-        doctorName: '',
-        signatureImage: '',
-        prcLicense: '',
-        ptrNumber: '',
+        doctorName: clinicVet.name,
+        signatureImage: clinicVet.signatureImage || '',
+        prcLicense: clinicVet.prcLicense || '',
+        ptrNumber: clinicVet.ptrNumber || '',
       })
     }
   }
@@ -1748,7 +1799,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                         : (overrideDiag || reviewConsult?.diagnosis || 'Skin Lesion')
 
                       let primaryParsed = rawDiag
-                      let secondaryParsed = null
+                      let secondaryParsed
 
                       if (rawDiag.toLowerCase().includes(' with ')) {
                         const parts = rawDiag.split(/ with /i)
@@ -1950,19 +2001,7 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
                                   type="button"
                                   className="secondary-btn"
                                   style={{ padding: '3px 8px', fontSize: '0.72rem', whiteSpace: 'nowrap', display: 'inline-flex', alignItems: 'center', gap: 4 }}
-                                  onClick={() => {
-                                    setEmailRxModalData({
-                                      patient: recheckPatient,
-                                      consultation: v.consultation,
-                                      prescription: v.consultation.treatmentPlan,
-                                      clinicalNotes: v.consultation.clinicalNotes || '',
-                                      diagnosis: v.consultation.diagnosis || recheckPatient?.areaOfConcern || 'Follow-up Recheck',
-                                      doctorName: v.consultation.doctorName || '',
-                                      signatureImage: v.consultation.doctorSignatureImage || v.consultation.signatureImage || '',
-                                      prcLicense: v.consultation.doctorPrcLicense || v.consultation.prcLicense || '',
-                                      ptrNumber: v.consultation.doctorPtrNumber || v.consultation.ptrNumber || '',
-                                    })
-                                  }}
+                                  onClick={() => handleOpenEmailRx(recheckPatient, v.consultation)}
                                   title="Email this visit's prescription to owner"
                                 >
                                   Email Rx
@@ -2458,10 +2497,25 @@ export default function Patients({ authToken, apiBaseUrl = 'http://localhost:800
           prescription={emailRxModalData.prescription}
           clinicalNotes={emailRxModalData.clinicalNotes}
           diagnosis={emailRxModalData.diagnosis}
-          doctorName={emailRxModalData.doctorName || (currentUser?.name ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`) : 'Attending Veterinarian')}
-          signatureImage={emailRxModalData.signatureImage || (!isStaff ? (currentUser?.signatureImage || currentUser?.signature_image) : '')}
-          prcLicense={emailRxModalData.prcLicense || (!isStaff ? (currentUser?.prcLicense || '') : '')}
-          ptrNumber={emailRxModalData.ptrNumber || (!isStaff ? (currentUser?.ptrNumber || '') : '')}
+          doctorName={
+            emailRxModalData.doctorName && !emailRxModalData.doctorName.toLowerCase().includes('staff')
+              ? emailRxModalData.doctorName
+              : (!isStaff && currentUser?.name && !currentUser.name.toLowerCase().includes('staff')
+                  ? (currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`)
+                  : 'Dr. Emily Chen, DVM')
+          }
+          signatureImage={
+            emailRxModalData.signatureImage ||
+            (!isStaff ? (currentUser?.signatureImage || currentUser?.signature_image || '') : '')
+          }
+          prcLicense={
+            emailRxModalData.prcLicense ||
+            (!isStaff ? (currentUser?.prcLicense || '') : '')
+          }
+          ptrNumber={
+            emailRxModalData.ptrNumber ||
+            (!isStaff ? (currentUser?.ptrNumber || '') : '')
+          }
           currentUser={currentUser}
           isStaff={isStaff}
           authToken={authToken}

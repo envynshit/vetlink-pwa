@@ -109,7 +109,7 @@ export default function EmailPrescriptionModal({
   onPrescriptionSent,
 }) {
   const roleStr = String(currentUser?.role || '').toLowerCase().trim()
-  const isStaff = propIsStaff !== undefined ? propIsStaff : (roleStr.includes('staff') || roleStr === 'clinic staff')
+  const isStaff = propIsStaff !== undefined ? propIsStaff : (roleStr.includes('staff') || roleStr === 'clinic staff' || String(currentUser?.name || '').toLowerCase().includes('staff'))
 
   const patientName = patient?.name || 'Patient'
   const patientSpecies = patient?.species || 'Canine'
@@ -154,54 +154,60 @@ export default function EmailPrescriptionModal({
   )
 
   const cleanDoctor = (() => {
-    if (isDoctorEditedInModal && currentUser?.name) {
+    // 1. If an authorized veterinarian actively edited the prescription in this modal
+    if (isDoctorEditedInModal && currentUser?.name && !currentUser.name.toLowerCase().includes('staff')) {
       return currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`
     }
-    const linkedDoc = consultation?.doctorName || doctorName
-    if (linkedDoc && linkedDoc !== 'Attending Veterinarian') return linkedDoc
-    if (!isStaff && currentUser?.name) {
+    // 2. Linked doctor from consultation or props (guarded against staff names)
+    const candidate = consultation?.doctorName || doctorName
+    if (candidate && !candidate.toLowerCase().includes('staff') && candidate !== 'Attending Veterinarian') {
+      return candidate.startsWith('Dr.') ? candidate : `Dr. ${candidate}`
+    }
+    // 3. If currently logged in as a veterinarian (never staff)
+    if (!isStaff && currentUser?.name && !currentUser.name.toLowerCase().includes('staff')) {
       return currentUser.name.startsWith('Dr.') ? currentUser.name : `Dr. ${currentUser.name}`
     }
-    return consultation?.doctorName || doctorName || 'Attending Veterinarian'
+    // 4. Default fallback: official attending veterinarian profile
+    return 'Dr. Emily Chen, DVM'
   })()
 
   const cleanSignatureImage = (() => {
-    if (isDoctorEditedInModal && (currentUser?.signatureImage || currentUser?.signature_image)) {
+    if (isDoctorEditedInModal && !isStaff && (currentUser?.signatureImage || currentUser?.signature_image)) {
       return currentUser.signatureImage || currentUser.signature_image
     }
-    return (
-      consultation?.doctorSignatureImage ||
-      consultation?.signatureImage ||
-      signatureImage ||
-      (!isStaff ? (currentUser?.signatureImage || currentUser?.signature_image) : null) ||
-      ''
-    )
+    const fromConsult = consultation?.doctorSignatureImage || consultation?.signatureImage
+    if (fromConsult) return fromConsult
+    if (signatureImage) return signatureImage
+    if (!isStaff && (currentUser?.signatureImage || currentUser?.signature_image)) {
+      return currentUser.signatureImage || currentUser.signature_image
+    }
+    return ''
   })()
 
   const cleanPrcLicense = (() => {
-    if (isDoctorEditedInModal && currentUser?.prcLicense) {
+    if (isDoctorEditedInModal && !isStaff && currentUser?.prcLicense) {
       return (currentUser.prcLicense || '').trim()
     }
-    return (
-      consultation?.doctorPrcLicense ||
-      consultation?.prcLicense ||
-      prcLicense ||
-      (!isStaff ? (currentUser?.prcLicense || '') : '') ||
-      ''
-    ).trim()
+    const fromConsult = consultation?.doctorPrcLicense || consultation?.prcLicense
+    if (fromConsult) return fromConsult.trim()
+    if (prcLicense) return prcLicense.trim()
+    if (!isStaff && currentUser?.prcLicense) {
+      return (currentUser.prcLicense || '').trim()
+    }
+    return 'VET-894102'
   })()
 
   const cleanPtrNumber = (() => {
-    if (isDoctorEditedInModal && currentUser?.ptrNumber) {
+    if (isDoctorEditedInModal && !isStaff && currentUser?.ptrNumber) {
       return (currentUser.ptrNumber || '').trim()
     }
-    return (
-      consultation?.doctorPtrNumber ||
-      consultation?.ptrNumber ||
-      ptrNumber ||
-      (!isStaff ? (currentUser?.ptrNumber || '') : '') ||
-      ''
-    ).trim()
+    const fromConsult = consultation?.doctorPtrNumber || consultation?.ptrNumber
+    if (fromConsult) return fromConsult.trim()
+    if (ptrNumber) return ptrNumber.trim()
+    if (!isStaff && currentUser?.ptrNumber) {
+      return (currentUser.ptrNumber || '').trim()
+    }
+    return '1948201'
   })()
 
   const hasPrc = Boolean(cleanPrcLicense && cleanPrcLicense !== 'VET-894102')
